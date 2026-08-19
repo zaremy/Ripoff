@@ -15,6 +15,10 @@ enum InspoShared {
     /// URL the extension opens to bring the app forward on the capture sheet.
     static let hostAppURL = "inspo://shared"
 
+    /// Sidecar file holding a shared page's serialized DOM, named after the
+    /// image it belongs to.
+    static let snapshotExtension = "inspodom"
+
     static func queueDirectory() -> URL? {
         guard let container = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: appGroupId

@@ -1,4 +1,5 @@
 import { chromium } from 'playwright'
+import { readFileSync } from 'node:fs'
 
 const BASE = 'http://localhost:4173'
 const OUT = process.env.OUT_DIR
@@ -11,7 +12,13 @@ function pngDataUrl(r, g, b, w = 300, h = 640) {
 const browser = await chromium.launch(
   process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {},
 )
-const page = await browser.newPage({ viewport: { width: 402, height: 874 }, deviceScaleFactor: 2 })
+const context = await browser.newContext({
+  viewport: { width: 402, height: 874 },
+  deviceScaleFactor: 2,
+  acceptDownloads: true,
+  permissions: ['clipboard-read', 'clipboard-write'],
+})
+const page = await context.newPage()
 page.on('pageerror', (e) => { console.error('PAGE ERROR:', e.message); process.exitCode = 1 })
 page.on('console', (m) => { if (m.type() === 'error') console.error('CONSOLE ERROR:', m.text()) })
 
@@ -143,7 +150,7 @@ assert(imgSrc?.startsWith('blob:'), 'images render from local storage, not a URL
 
 // The page itself is served over HTTP here; in the packaged app it is a local
 // file. What matters is that nothing the app *does* needs the network.
-await page.context().setOffline(true)
+await context.setOffline(true)
 await page.getByPlaceholder('Search references').fill('avatars')
 await page.waitForFunction(() => document.querySelectorAll('.card').length === 11)
 assert(true, 'search works offline')
@@ -162,9 +169,68 @@ await page.locator('.card-image').first().click()
 await page.waitForSelector('.detail')
 assert(requests.length === 0, `opening a capture hit the network ${requests.length} times`)
 await page.getByRole('button', { name: 'Back' }).click()
-await page.context().setOffline(false)
+await context.setOffline(false)
 
-console.log('\n9. Sticky context survived the restart too')
+console.log('\n9. A web reference carries its page, for Claude Code and Figma')
+const PAGE_HTML = `<!doctype html><html><head><title>Discover</title><style>
+body{margin:0;font-family:Helvetica,Arial,sans-serif;background:#101014}
+.card{width:320px;padding:24px;background:rgb(28,27,22);color:rgb(242,240,234)}
+.title{font-size:22px;font-weight:700;margin:0 0 8px}
+.tag{display:inline-block;background:rgb(231,238,251);color:rgb(38,64,110);padding:4px 10px}
+</style></head><body><div class="card"><h1 class="title">Pixel Wild</h1><span class="tag">Avatar treatment</span></div></body></html>`
+
+{
+  const buffer = await page.evaluate(async () => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 320; canvas.height = 600
+    const ctx = canvas.getContext('2d')
+    ctx.fillStyle = '#101014'; ctx.fillRect(0, 0, 320, 600)
+    const blob = await new Promise((res) => canvas.toBlob(res, 'image/png'))
+    return Array.from(new Uint8Array(await blob.arrayBuffer()))
+  })
+  await page.locator('input[type=file]').setInputFiles([
+    { name: 'shot.png', mimeType: 'image/png', buffer: Buffer.from(buffer) },
+    { name: 'discover.html', mimeType: 'text/html', buffer: Buffer.from(PAGE_HTML) },
+  ])
+}
+await page.waitForSelector('.sheet')
+assert((await page.locator('.sheet-note').innerText()).includes('discover.html'),
+  'the capture sheet reports the page came along')
+await page.getByRole('button', { name: 'Save', exact: true }).click()
+await page.waitForSelector('.sheet', { state: 'detached' })
+
+await page.locator('.card-image').first().click()
+await page.waitForSelector('.detail')
+assert(await page.locator('.handoff').count() === 1, 'the web reference offers a handoff')
+if (OUT) {
+  await page.locator('.handoff').scrollIntoViewIfNeeded()
+  await page.screenshot({ path: `${OUT}/6-handoff.png` })
+}
+
+await page.getByRole('button', { name: 'Copy for Claude Code' }).click()
+await page.waitForFunction(() => document.querySelector('.handoff-status')?.textContent?.includes('copied'))
+const clip = await page.evaluate(() => navigator.clipboard.readText())
+assert(clip.includes('**From:**') && clip.includes('**For:**'), 'handoff leads with FROM and FOR')
+assert(clip.includes('<h1 class="title">Pixel Wild</h1>'), 'handoff carries the real markup')
+
+const download = page.waitForEvent('download')
+await page.getByRole('button', { name: 'Figma layers' }).click()
+const file = await download
+const figmaPath = `${OUT ?? "/tmp"}/${file.suggestedFilename()}`
+await file.saveAs(figmaPath)
+const layers = JSON.parse(readFileSync(figmaPath, 'utf8'))
+assert(file.suggestedFilename().endsWith('-figma-layers.json'), `named ${file.suggestedFilename()}`)
+assert(layers.type === 'FRAME', `root layer is a FRAME (got ${layers.type})`)
+const text = []
+;(function walk(n) { if (n?.type === 'TEXT') text.push(n.characters); (n?.children || []).forEach(walk) })(layers)
+assert(text.includes('Pixel Wild'), `figma layers carry the page text (found ${JSON.stringify(text)})`)
+const solid = []
+;(function walk(n) { (n?.fills || []).forEach((f) => f.color && solid.push(f.color)); (n?.children || []).forEach(walk) })(layers)
+assert(solid.some((c) => Math.round(c.r * 255) === 231 && Math.round(c.g * 255) === 238),
+  'figma layers carry the page colours')
+await page.getByRole('button', { name: 'Back' }).click()
+
+console.log('\n10. Sticky context survived the restart too')
 await addScreenshot(pngDataUrl(120, 120, 120))
 await page.waitForSelector('.sheet')
 const afterRestartSource = await page.locator('.picker').first().locator('.tag.selected').innerText()

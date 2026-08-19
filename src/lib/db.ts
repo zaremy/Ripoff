@@ -6,12 +6,13 @@
  * IndexedDB and the local filesystem.
  */
 
-import { deleteImage, putImage } from './blobStore'
+import { deleteImage, putImage, putText, readText } from './blobStore'
 import { newId } from './id'
 import { idbDelete, idbGet, idbGetAll, idbPut, STORE_CAPTURES, STORE_PREFS } from './idb'
 import { decodeDimensions, makeThumbnail } from './image'
+import type { DomSnapshot } from './domSnapshot'
 import { normalizeTag, uniqueTags } from './tags'
-import { EMPTY_DEFAULTS, type Capture, type CaptureDefaults } from './types'
+import { EMPTY_DEFAULTS, type Capture, type CaptureDefaults, type SnapshotMeta } from './types'
 
 const PREFS_DEFAULTS_KEY = 'capture_defaults'
 const MAX_RECENTS = 24
@@ -34,6 +35,8 @@ export interface NewCaptureInput {
   relevant_to: string[]
   /** Overridable so tests do not depend on the clock. */
   created_at?: number
+  /** Present only when the reference was a web page rather than an app. */
+  snapshot?: DomSnapshot
 }
 
 export async function createCapture(input: NewCaptureInput): Promise<Capture> {
@@ -51,6 +54,8 @@ export async function createCapture(input: NewCaptureInput): Promise<Capture> {
   const local_image_uri = await putImage(id, input.blob)
   const thumb_uri = thumb === input.blob ? local_image_uri : await putImage(`${id}-thumb`, thumb)
 
+  const snapshotRefs = input.snapshot ? await storeSnapshot(id, input.snapshot) : null
+
   const capture: Capture = {
     id,
     created_at: input.created_at ?? Date.now(),
@@ -62,6 +67,7 @@ export async function createCapture(input: NewCaptureInput): Promise<Capture> {
     height: dimensions.height,
     mime: input.blob.type || 'image/png',
     bytes: input.blob.size,
+    ...(snapshotRefs ?? {}),
   }
 
   await idbPut(STORE_CAPTURES, capture)
@@ -94,6 +100,29 @@ export async function deleteCapture(id: string): Promise<void> {
   await idbDelete(STORE_CAPTURES, id)
   await deleteImage(existing.local_image_uri)
   if (existing.thumb_uri !== existing.local_image_uri) await deleteImage(existing.thumb_uri)
+  if (existing.snapshot_uri) await deleteImage(existing.snapshot_uri)
+}
+
+/** The markup behind a capture, or null when there never was any. */
+export async function loadSnapshotHtml(capture: Capture): Promise<string | null> {
+  if (!capture.snapshot_uri) return null
+  return readText(capture.snapshot_uri)
+}
+
+async function storeSnapshot(
+  id: string,
+  snapshot: DomSnapshot,
+): Promise<{ snapshot_uri: string; snapshot: SnapshotMeta }> {
+  return {
+    snapshot_uri: await putText(`${id}-dom`, snapshot.html),
+    snapshot: {
+      url: snapshot.url,
+      title: snapshot.title,
+      viewport: snapshot.viewport,
+      bytes: new Blob([snapshot.html]).size,
+      blocked_stylesheets: snapshot.blocked_stylesheets,
+    },
+  }
 }
 
 export async function loadDefaults(): Promise<CaptureDefaults> {

@@ -4,9 +4,14 @@ import UniformTypeIdentifiers
 /// The Share Extension. It has no UI of its own on purpose.
 ///
 /// Tagging happens in the app, where the library already lives, so the
-/// extension's only job is to get the bytes into the App Group container and
-/// bring Inspo forward. That keeps one source of truth for captures and makes
-/// the share itself instant.
+/// extension's only job is to get the shared material into the App Group
+/// container and bring Inspo forward. That keeps one source of truth for
+/// captures and makes the share itself instant.
+///
+/// Two kinds of share arrive here. A screenshot carries pixels and no DOM. A
+/// page shared from Safari runs `share-preprocess.js` in the tab and carries
+/// the serialized DOM but no pixels. Both are queued; the app draws a cover
+/// for the second kind.
 ///
 /// Add this file to the **Share Extension** target only.
 class ShareViewController: UIViewController {
@@ -19,51 +24,88 @@ class ShareViewController: UIViewController {
     private func handleSharedItems() {
         let attachments = (extensionContext?.inputItems as? [NSExtensionItem] ?? [])
             .flatMap { $0.attachments ?? [] }
-            .filter { $0.hasItemConformingToTypeIdentifier(UTType.image.identifier) }
 
-        guard !attachments.isEmpty else {
+        let images = attachments.filter { $0.hasItemConformingToTypeIdentifier(UTType.image.identifier) }
+        let pages = attachments.filter { $0.hasItemConformingToTypeIdentifier(UTType.propertyList.identifier) }
+
+        guard !images.isEmpty || !pages.isEmpty else {
             finish()
             return
         }
 
         let group = DispatchGroup()
-        for attachment in attachments {
+        // A page shared alongside an image belongs to that image.
+        var snapshot: String?
+
+        for attachment in pages {
             group.enter()
-            attachment.loadItem(forTypeIdentifier: UTType.image.identifier, options: nil) { item, _ in
+            attachment.loadItem(forTypeIdentifier: UTType.propertyList.identifier, options: nil) { item, _ in
                 defer { group.leave() }
-                self.enqueue(item)
+                guard
+                    let dictionary = item as? NSDictionary,
+                    let results = dictionary[NSExtensionJavaScriptPreprocessingResultsKey] as? NSDictionary,
+                    let serialized = results["snapshot"] as? String
+                else { return }
+                snapshot = serialized
             }
         }
 
-        group.notify(queue: .main) { [weak self] in
-            self?.finish()
+        group.notify(queue: .global(qos: .userInitiated)) { [weak self] in
+            guard let self else { return }
+
+            if images.isEmpty {
+                // Page-only share: queue the markup on its own.
+                self.write(imageData: nil, extension: nil, snapshot: snapshot)
+                DispatchQueue.main.async { self.finish() }
+                return
+            }
+
+            let imageGroup = DispatchGroup()
+            for attachment in images {
+                imageGroup.enter()
+                attachment.loadItem(forTypeIdentifier: UTType.image.identifier, options: nil) { item, _ in
+                    defer { imageGroup.leave() }
+                    let (data, ext) = Self.imageData(from: item)
+                    guard let data else { return }
+                    self.write(imageData: data, extension: ext, snapshot: snapshot)
+                }
+            }
+            imageGroup.notify(queue: .main) { self.finish() }
         }
     }
 
-    /// Shared items arrive either as a file URL, as raw Data, or as a UIImage.
-    private func enqueue(_ item: NSSecureCoding?) {
-        guard let directory = InspoShared.queueDirectory() else { return }
-
-        var payload: Data?
-        var ext = "png"
-
+    /// Shared images arrive either as a file URL, as raw Data, or as a UIImage.
+    private static func imageData(from item: NSSecureCoding?) -> (Data?, String?) {
         switch item {
         case let url as URL:
-            payload = try? Data(contentsOf: url)
-            if !url.pathExtension.isEmpty { ext = url.pathExtension }
+            return (try? Data(contentsOf: url), url.pathExtension.isEmpty ? nil : url.pathExtension)
         case let data as Data:
-            payload = data
+            return (data, nil)
         case let image as UIImage:
-            payload = image.pngData()
+            return (image.pngData(), "png")
         default:
-            return
+            return (nil, nil)
+        }
+    }
+
+    /// One queued share is one file, plus a sidecar holding its page markup.
+    private func write(imageData: Data?, extension ext: String?, snapshot: String?) {
+        guard let directory = InspoShared.queueDirectory() else { return }
+
+        let id = UUID().uuidString
+        if let imageData {
+            let destination = directory
+                .appendingPathComponent(id)
+                .appendingPathExtension(ext ?? "png")
+            try? imageData.write(to: destination, options: .atomic)
         }
 
-        guard let data = payload else { return }
-        let destination = directory
-            .appendingPathComponent(UUID().uuidString)
-            .appendingPathExtension(ext)
-        try? data.write(to: destination, options: .atomic)
+        if let snapshot, let data = snapshot.data(using: .utf8) {
+            let sidecar = directory
+                .appendingPathComponent(id)
+                .appendingPathExtension(InspoShared.snapshotExtension)
+            try? data.write(to: sidecar, options: .atomic)
+        }
     }
 
     private func finish() {
@@ -74,10 +116,6 @@ class ShareViewController: UIViewController {
         }
     }
 
-    /// Share extensions cannot reach UIApplication directly, so ask the
-    /// extension context first and fall back to walking the responder chain.
-    /// If neither works the screenshot still waits in the queue and the app
-    /// picks it up the next time it is opened.
     private func openHostApp(completion: @escaping () -> Void) {
         guard let url = URL(string: InspoShared.hostAppURL) else {
             completion()

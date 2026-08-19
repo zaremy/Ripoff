@@ -1,3 +1,5 @@
+import type { DomSnapshot } from './domSnapshot'
+
 /**
  * The whole object model. Three things exist: a Capture, the Source it came
  * FROM, and the Relevant To tags it is FOR. Nothing else is MVP.
@@ -19,6 +21,21 @@ export interface Capture {
   height: number
   mime: string
   bytes: number
+  /**
+   * Set only when the reference was a web page. Native apps have no DOM, so
+   * most captures will never have one.
+   */
+  snapshot_uri?: string
+  snapshot?: SnapshotMeta
+}
+
+/** The parts of a DOM snapshot worth keeping in the record itself. */
+export interface SnapshotMeta {
+  url: string
+  title: string
+  viewport: { width: number; height: number }
+  bytes: number
+  blocked_stylesheets: string[]
 }
 
 /** Sticky context for the next capture, plus recency for the tag pickers. */
@@ -43,4 +60,6 @@ export interface PendingCapture {
   blob: Blob
   /** Object URL for previewing the draft before it is saved. */
   previewUrl: string
+  /** Present when the share carried the page behind the screenshot. */
+  snapshot?: DomSnapshot
 }

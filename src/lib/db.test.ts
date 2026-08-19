@@ -13,6 +13,7 @@ import {
   deleteCapture,
   loadCaptures,
   loadDefaults,
+  loadSnapshotHtml,
   updateCaptureTags,
 } from './db'
 import { idbGet, resetDbForTests, STORE_BLOBS } from './idb'
@@ -204,5 +205,82 @@ describe('tag memory', () => {
     }
     expect(defaults.recent_sources).toHaveLength(24)
     expect(defaults.recent_sources[0]).toBe('Product 39')
+  })
+})
+
+describe('captures that carry the page behind them', () => {
+  const snapshot = {
+    url: 'https://pixelwild.example/discover',
+    title: 'Discover',
+    captured_at: 42,
+    viewport: { width: 390, height: 844 },
+    html: '<!doctype html><html><body><main>Avatars</main></body></html>',
+    blocked_stylesheets: ['https://cdn.example/app.css'],
+  }
+
+  it('stores the markup and a summary of it on the record', async () => {
+    const capture = await createCapture({
+      blob: screenshot(),
+      source: 'Pixel Wild',
+      relevant_to: ['Four Crowns / Avatars'],
+      snapshot,
+    })
+
+    expect(capture.snapshot_uri).toBeTruthy()
+    expect(capture.snapshot?.url).toBe(snapshot.url)
+    expect(capture.snapshot?.viewport).toEqual({ width: 390, height: 844 })
+    expect(capture.snapshot?.blocked_stylesheets).toEqual(['https://cdn.example/app.css'])
+    expect(await loadSnapshotHtml(capture)).toBe(snapshot.html)
+  })
+
+  it('keeps the markup readable after a restart', async () => {
+    await createCapture({
+      blob: screenshot(),
+      source: 'Pixel Wild',
+      relevant_to: ['Four Crowns / Avatars'],
+      snapshot,
+    })
+
+    const [reloaded] = await relaunchApp()
+    expect(await loadSnapshotHtml(reloaded!)).toContain('<main>Avatars</main>')
+  })
+
+  it('leaves the markup alone when the tags change', async () => {
+    const capture = await createCapture({
+      blob: screenshot(),
+      source: 'Pixel Wild',
+      relevant_to: ['Four Crowns / Avatars'],
+      snapshot,
+    })
+
+    const updated = await updateCaptureTags(capture.id, 'Pixel Wild', ['AI Native UI'])
+
+    expect(updated.snapshot_uri).toBe(capture.snapshot_uri)
+    expect(await loadSnapshotHtml(updated)).toBe(snapshot.html)
+  })
+
+  it('deletes the markup along with the capture', async () => {
+    const capture = await createCapture({
+      blob: screenshot(),
+      source: 'Pixel Wild',
+      relevant_to: ['Four Crowns / Avatars'],
+      snapshot,
+    })
+    const ref = capture.snapshot_uri!
+
+    await deleteCapture(capture.id)
+
+    expect(await idbGet(STORE_BLOBS, ref.slice('idb:'.length))).toBeUndefined()
+  })
+
+  it('reports no markup for an ordinary screenshot', async () => {
+    const capture = await createCapture({
+      blob: screenshot(),
+      source: 'Disco Elysium',
+      relevant_to: ['Four Crowns / Dialogue'],
+    })
+
+    expect(capture.snapshot_uri).toBeUndefined()
+    expect(await loadSnapshotHtml(capture)).toBeNull()
   })
 })

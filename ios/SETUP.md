@@ -47,6 +47,12 @@ into Xcode with *Add Files to "App"* and set target membership as follows:
 | `InspoShared.swift` | yes | yes |
 | `ShareIntakePlugin.swift` | yes | no |
 | `ShareViewController.swift` | no | yes |
+| `share-preprocess.js` | no | yes (Copy Bundle Resources) |
+
+`share-preprocess.js` is generated - run `npm run build:preprocess` (or
+`npm run sync`, which includes it) after changing `src/lib/domSnapshot.ts`, and
+never edit it by hand. It has to land in the extension's **Copy Bundle
+Resources** build phase, not Compile Sources; Safari loads it by name.
 
 `InspoShared.swift` belongs to both because the queue folder is the contract
 between the two processes.
@@ -61,8 +67,9 @@ Then:
 - Delete the `ShareViewController.swift` and `MainInterface.storyboard` that
   Xcode generates — the extension has no UI of its own.
 - Replace the generated `Info.plist` with `ios/native/ShareExtension-Info.plist`,
-  or copy its `NSExtension` block across. The activation rule accepts images
-  only, up to 20 at a time.
+  or copy its `NSExtension` block across. The activation rule accepts up to 20
+  images, or one web page; the `NSExtensionJavaScriptPreprocessingFile` key is
+  what makes Safari run the DOM serializer in the tab.
 - Remove the `NSExtensionMainStoryboard` key if Xcode added one; the principal
   class key in the provided plist replaces it.
 - Set the extension's deployment target to match the app's.
@@ -85,6 +92,22 @@ Screenshot in any app
   -> capture sheet opens, already filled in with the last used FROM and FOR
   -> Save
 ```
+
+## Capturing the page as well as the picture
+
+Sharing a screenshot gives pixels and no DOM. Sharing from Safari's address bar
+runs `share-preprocess.js` in the tab and gives the DOM but no pixels. The
+extension queues whichever it gets:
+
+```
+Screenshot share   ->  <uuid>.png
+Safari page share  ->  <uuid>.inspodom          (app draws the cover)
+Both together      ->  <uuid>.png + <uuid>.inspodom
+```
+
+The sidecar is named after the image it belongs to, so the plugin can pair them
+up and delete them together. A page-only share still becomes a normal capture:
+the app renders the markup to an image so the wall never shows a blank tile.
 
 If iOS refuses to open the host app — it is allowed to, and the extension does
 not treat that as an error — the screenshot simply stays in the queue and is

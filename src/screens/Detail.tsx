@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Handoff } from '../components/Handoff'
 import { TagPicker } from '../components/TagPicker'
 import { useImageUrl } from '../hooks/useImageUrl'
 import type { Capture } from '../lib/types'
@@ -106,6 +107,8 @@ export function Detail({ capture }: { capture: Capture }) {
               </button>
             ))}
           </div>
+
+          <Handoff capture={capture} />
 
           {confirmingDelete ? (
             <div className="confirm">

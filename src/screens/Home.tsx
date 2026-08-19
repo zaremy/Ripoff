@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { CaptureCard } from '../components/CaptureCard'
 import { Masonry } from '../components/Masonry'
-import { imagesFromFileList } from '../lib/share'
+import { incomingFromFiles } from '../lib/share'
 import { selectCaptures } from '../lib/tags'
 import type { Capture } from '../lib/types'
 import { useStore } from '../state/store'
@@ -38,11 +38,11 @@ export function Home() {
         <input
           ref={fileInput}
           type="file"
-          accept="image/*"
+          accept="image/*,.html"
           multiple
           hidden
           onChange={(event) => {
-            enqueue(imagesFromFileList(event.target.files))
+            void incomingFromFiles(event.target.files).then(enqueue)
             event.target.value = ''
           }}
         />

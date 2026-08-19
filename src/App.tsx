@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { imagesFromDataTransfer } from './lib/share'
+import { incomingFromFiles } from './lib/share'
 import { Detail } from './screens/Detail'
 import { Home } from './screens/Home'
 import { CaptureSheet } from './screens/CaptureSheet'
@@ -13,15 +13,14 @@ export function App() {
   // Drag-and-drop and paste stand in for the iOS share sheet on the desktop.
   useEffect(() => {
     const onDrop = (event: DragEvent) => {
-      const images = imagesFromDataTransfer(event.dataTransfer)
-      if (images.length === 0) return
+      const files = event.dataTransfer?.files
+      if (!files || files.length === 0) return
       event.preventDefault()
-      enqueue(images)
+      void incomingFromFiles(files).then(enqueue)
     }
     const onDragOver = (event: DragEvent) => event.preventDefault()
     const onPaste = (event: ClipboardEvent) => {
-      const images = imagesFromDataTransfer(event.clipboardData)
-      if (images.length > 0) enqueue(images)
+      void incomingFromFiles(event.clipboardData?.files).then(enqueue)
     }
 
     window.addEventListener('drop', onDrop)

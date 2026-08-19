@@ -12,7 +12,7 @@
  */
 
 import { Capacitor } from '@capacitor/core'
-import { Directory, Filesystem } from '@capacitor/filesystem'
+import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
 import { idbDelete, idbGet, idbPut, STORE_BLOBS } from './idb'
 
 const IMAGE_DIR = 'captures'
@@ -40,6 +40,7 @@ function extensionFor(mime: string): string {
   if (mime === 'image/webp') return 'webp'
   if (mime === 'image/heic') return 'heic'
   if (mime === 'image/gif') return 'gif'
+  if (mime === 'text/html') return 'html'
   return 'png'
 }
 
@@ -94,6 +95,33 @@ export async function resolveImage(ref: string): Promise<ResolvedImage> {
   if (!record) throw new Error(`Missing image for ${ref}`)
   const url = URL.createObjectURL(new Blob([record.bytes], { type: record.mime }))
   return { url, release: () => URL.revokeObjectURL(url) }
+}
+
+/**
+ * Snapshots are text rather than pixels, but they want the same treatment:
+ * the filesystem on device, IndexedDB in a browser, one opaque ref either way.
+ */
+export async function putText(key: string, text: string): Promise<string> {
+  return putImage(key, new Blob([text], { type: 'text/html' }))
+}
+
+export async function readText(ref: string): Promise<string | null> {
+  if (ref.startsWith('file:')) {
+    try {
+      const { data } = await Filesystem.readFile({
+        path: ref.slice('file:'.length),
+        directory: Directory.Data,
+        encoding: Encoding.UTF8,
+      })
+      return typeof data === 'string' ? data : await data.text()
+    } catch {
+      return null
+    }
+  }
+
+  const record = await idbGet<StoredImage>(STORE_BLOBS, ref.slice('idb:'.length))
+  if (!record) return null
+  return new TextDecoder().decode(record.bytes)
 }
 
 export async function deleteImage(ref: string): Promise<void> {

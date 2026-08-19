@@ -13,12 +13,21 @@
  */
 
 import { Capacitor, registerPlugin } from '@capacitor/core'
+import type { DomSnapshot } from './domSnapshot'
+
+/** An image on its way to the capture sheet, with the page behind it if any. */
+export interface IncomingCapture {
+  blob: Blob
+  snapshot?: DomSnapshot
+}
 
 interface PendingShare {
   id: string
-  /** Raw image bytes, base64, no data: prefix. */
-  data: string
-  mime: string
+  /** Raw image bytes, base64, no data: prefix. Absent for a page-only share. */
+  data?: string
+  mime?: string
+  /** A serialized DomSnapshot, when the share came from Safari. */
+  snapshot?: string
 }
 
 interface ShareIntakePlugin {
@@ -39,16 +48,24 @@ function base64ToBlob(base64: string, mime: string): Blob {
  * Pull everything the Share Extension has queued up and clear it. Returns an
  * empty list on the web, or when the native plugin is not present.
  */
-export async function drainPendingShares(): Promise<Blob[]> {
+export async function drainPendingShares(): Promise<IncomingCapture[]> {
   if (!Capacitor.isNativePlatform() || !Capacitor.isPluginAvailable('ShareIntake')) return []
 
   try {
     const { items } = await ShareIntake.getPendingShares()
     if (items.length === 0) return []
-    const blobs = items.map((item) => base64ToBlob(item.data, item.mime))
+
+    const incoming: IncomingCapture[] = []
+    for (const item of items) {
+      const { snapshot } = parseSnapshot(item.snapshot)
+      const blob = await imageForShare(item, snapshot)
+      if (!blob) continue
+      incoming.push(snapshot ? { blob, snapshot } : { blob })
+    }
+
     // Only clear once the bytes are safely in JS memory and about to be saved.
     await ShareIntake.clearPendingShares({ ids: items.map((i) => i.id) })
-    return blobs
+    return incoming
   } catch {
     return []
   }
@@ -70,6 +87,36 @@ export function onAppResume(handler: () => void): () => void {
   }
 }
 
+/**
+ * Sharing a screenshot gives pixels; sharing from Safari's address bar gives a
+ * page. A capture needs an image either way, so a page-only share gets one
+ * drawn for it.
+ */
+async function imageForShare(
+  item: PendingShare,
+  snapshot: DomSnapshot | undefined,
+): Promise<Blob | null> {
+  if (item.data) return base64ToBlob(item.data, item.mime ?? 'image/png')
+  if (!snapshot) return null
+  try {
+    const { coverForSnapshot } = await import('./snapshotCover')
+    return await coverForSnapshot(snapshot)
+  } catch {
+    return null
+  }
+}
+
+/** A malformed snapshot must never cost the user the screenshot itself. */
+function parseSnapshot(raw: string | undefined): { snapshot?: DomSnapshot } {
+  if (!raw) return {}
+  try {
+    const parsed = JSON.parse(raw) as DomSnapshot
+    return parsed?.html ? { snapshot: parsed } : {}
+  } catch {
+    return {}
+  }
+}
+
 const IMAGE_TYPE = /^image\//
 
 export function imagesFromFileList(files: FileList | File[] | null | undefined): File[] {
@@ -80,4 +127,40 @@ export function imagesFromFileList(files: FileList | File[] | null | undefined):
 export function imagesFromDataTransfer(data: DataTransfer | null): File[] {
   if (!data) return []
   return imagesFromFileList(data.files)
+}
+
+/**
+ * Desktop has no share sheet to run the page serializer in, so a saved
+ * snapshot can be dropped or picked alongside its screenshot: any `.html`
+ * file in the same batch is attached to the images it arrived with.
+ */
+export async function incomingFromFiles(
+  files: FileList | File[] | null | undefined,
+): Promise<IncomingCapture[]> {
+  const all = files ? Array.from(files) : []
+  const images = all.filter((file) => IMAGE_TYPE.test(file.type))
+  if (images.length === 0) return []
+
+  const markup = all.find((file) => /\.html?$/i.test(file.name) || file.type === 'text/html')
+  if (!markup) return images.map((blob) => ({ blob }))
+
+  const snapshot = await snapshotFromHtmlFile(markup)
+  return images.map((blob) => (snapshot ? { blob, snapshot } : { blob }))
+}
+
+async function snapshotFromHtmlFile(file: File): Promise<DomSnapshot | undefined> {
+  try {
+    const html = await file.text()
+    if (!html.trim()) return undefined
+    return {
+      url: file.name,
+      title: /<title[^>]*>([^<]*)<\/title>/i.exec(html)?.[1]?.trim() ?? file.name,
+      captured_at: file.lastModified || Date.now(),
+      viewport: { width: 1280, height: 900 },
+      html,
+      blocked_stylesheets: [],
+    }
+  } catch {
+    return undefined
+  }
 }

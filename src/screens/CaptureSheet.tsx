@@ -2,6 +2,14 @@ import { useState } from 'react'
 import { TagPicker } from '../components/TagPicker'
 import type { CaptureDefaults, PendingCapture } from '../lib/types'
 
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host
+  } catch {
+    return url
+  }
+}
+
 interface CaptureSheetProps {
   draft: PendingCapture
   defaults: CaptureDefaults
@@ -62,6 +70,12 @@ export function CaptureSheet({
         <div className="sheet-preview">
           <img src={draft.previewUrl} alt="Screenshot being saved" />
         </div>
+
+        {draft.snapshot && (
+          <p className="sheet-note">
+            Page markup captured from {hostOf(draft.snapshot.url)}
+          </p>
+        )}
 
         <TagPicker
           label="From"
