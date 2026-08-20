@@ -27,13 +27,35 @@ In a browser you add references with the **+** button, or by dragging or
 pasting an image. On iOS the same intake is fed by the share sheet.
 
 ```sh
-npm test             # unit tests: storage, tags, search, tag memory
+npm test                  # unit tests: storage, tags, search, tag memory
 npm run test:acceptance   # drives a real browser through the PRD scenario
+npm run test:offline      # kills the server, checks the app still starts
+npm run shots             # screenshots every screen in both themes
 npm run build
 ```
 
-`test:acceptance` needs a preview server already running (`npm run preview`)
-and a Chromium; set `CHROME_PATH` if Playwright's own download is not present.
+`test:acceptance` and `shots` need a preview server already running
+(`npm run preview`); `test:offline` builds and serves itself. All three need a
+Chromium - set `CHROME_PATH` if Playwright's own download is not present.
+
+## In a browser
+
+The browser build is a real target, not a preview of the iOS one. It installs
+to a home screen and starts with no connection: the service worker precaches
+the built assets, and captures were already in IndexedDB.
+
+One trap worth recording, because it costs an afternoon to find. Static hosts
+answer assets with `Vary: Origin`, and Vite tags its own bundles `crossorigin`,
+so the page requests them with an `Origin` header that the precached `Request`
+does not carry. `Cache.match` honours `Vary` by default, so every asset misses
+and the app fails to boot with a completely full cache. The worker looks these
+up with `ignoreVary`, which is safe here because every entry is a same-origin
+asset keyed by a content-hashed URL.
+
+What the browser build does not have is the iOS share sheet, so references go
+in through **+**, drag, or paste, and a DOM snapshot has to arrive as an
+`.html` file alongside its image. Its library is also its own - there is no
+sync, so a phone and a laptop hold separate collections.
 
 ## iOS
 
