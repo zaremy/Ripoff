@@ -6,7 +6,8 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   ios: {
     contentInset: 'never',
-    // Screenshots are the whole product; never let the webview bounce-scroll them.
+    // The wall is a long scroll of screenshots, so the webview owns scrolling;
+    // contentInset 'never' above is what stops it insetting under the bars.
     scrollEnabled: true,
   },
   server: {

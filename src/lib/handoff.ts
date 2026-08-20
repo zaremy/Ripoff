@@ -26,7 +26,7 @@ export function claudeCodeHandoff(capture: Capture, html: string | null): string
     lines.push(`- **URL:** ${capture.snapshot.url}`)
     if (capture.snapshot.title) lines.push(`- **Page title:** ${capture.snapshot.title}`)
     lines.push(
-      `- **Captured at:** ${capture.snapshot.viewport.width}x${capture.snapshot.viewport.height}`,
+      `- **Viewport:** ${capture.snapshot.viewport.width}x${capture.snapshot.viewport.height}`,
     )
     if (capture.snapshot.blocked_stylesheets.length > 0) {
       lines.push(

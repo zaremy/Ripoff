@@ -63,10 +63,10 @@ sync, so a phone and a laptop hold separate collections.
 npm run ios          # build + cap sync + open Xcode
 ```
 
-The Xcode project is committed. Two steps still have to happen on a Mac — the
-App Group and the Share Extension target — and both are written out in
-[`ios/SETUP.md`](ios/SETUP.md). Until then the app works fine; you just add
-screenshots with **+** instead of through the share sheet.
+The Xcode project is committed, and so are the App Group and both Share
+Extension targets. What is left on a Mac is signing, which needs an Apple
+developer team; [`ios/SETUP.md`](ios/SETUP.md) walks through it. Until that is
+done the app still builds and runs on the simulator.
 
 ## How it is put together
 
