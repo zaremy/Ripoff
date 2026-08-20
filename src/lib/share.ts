@@ -37,6 +37,10 @@ interface ShareIntakePlugin {
 
 const ShareIntake = registerPlugin<ShareIntakePlugin>('ShareIntake')
 
+/** Set while a drain is in flight, so overlapping resume signals cannot
+ *  each claim the same queued screenshot. */
+let draining = false
+
 function base64ToBlob(base64: string, mime: string): Blob {
   const binary = atob(base64)
   const bytes = new Uint8Array(binary.length)
@@ -50,6 +54,15 @@ function base64ToBlob(base64: string, mime: string): Blob {
  */
 export async function drainPendingShares(): Promise<IncomingCapture[]> {
   if (!Capacitor.isNativePlatform() || !Capacitor.isPluginAvailable('ShareIntake')) return []
+
+  // Foregrounding fires more than one resume signal - visibilitychange and
+  // focus both land, and the launch pull can still be in flight behind them.
+  // Without this guard each of those reads the same queue before any of them
+  // clears it, and one shared screenshot arrives at the sheet three times.
+  // Concurrent callers get nothing rather than a copy: whoever is already
+  // draining owns these bytes and is about to enqueue them.
+  if (draining) return []
+  draining = true
 
   try {
     const { items } = await ShareIntake.getPendingShares()
@@ -68,6 +81,8 @@ export async function drainPendingShares(): Promise<IncomingCapture[]> {
     return incoming
   } catch {
     return []
+  } finally {
+    draining = false
   }
 }
 
