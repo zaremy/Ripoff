@@ -25,10 +25,19 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE)
-      // One bad entry must not fail the whole install.
-      await Promise.all(
-        PRECACHE.map((path) => cache.add(new Request(path, { cache: 'reload' })).catch(() => {})),
+      const results = await Promise.allSettled(
+        PRECACHE.map((path) => cache.add(new Request(path, { cache: 'reload' }))),
       )
+
+      // A half-filled cache is worse than no new worker at all: activate below
+      // deletes every older cache, so accepting a partial install would throw
+      // away a complete offline shell and replace it with a broken one. Failing
+      // the install leaves the previous worker, and its full cache, in charge.
+      const missing = results.filter((result) => result.status === 'rejected').length
+      if (missing > 0) {
+        throw new Error(`precache incomplete: ${missing} of ${PRECACHE.length} failed`)
+      }
+
       await self.skipWaiting()
     })(),
   )
