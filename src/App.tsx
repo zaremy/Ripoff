@@ -41,19 +41,34 @@ export function App() {
     if (orphanedDetail) pop()
   }, [orphanedDetail, pop])
 
+  // Errors have to render above the capture-sheet early return, or a failed
+  // save sets a message nothing is on screen to show and the Save button just
+  // appears to do nothing.
+  const banner = error ? (
+    <div className="banner" role="alert">
+      <span>{error}</span>
+      <button type="button" onClick={dismissError}>
+        Dismiss
+      </button>
+    </div>
+  ) : null
+
   // A capture waiting to be tagged always wins: the user is mid-teardown and
   // wants to get back to the product they were looking at.
   if (draft) {
     return (
-      <CaptureSheet
-        draft={draft}
-        defaults={store.defaults}
-        knownSources={store.knownSources}
-        knownRelevantTo={store.knownRelevantTo}
-        queued={pending.length}
-        onSave={(source, relevantTo) => store.save(draft.id, source, relevantTo)}
-        onDiscard={() => store.discardPending(draft.id)}
-      />
+      <>
+        {banner}
+        <CaptureSheet
+          draft={draft}
+          defaults={store.defaults}
+          knownSources={store.knownSources}
+          knownRelevantTo={store.knownRelevantTo}
+          queued={pending.length}
+          onSave={(source, relevantTo) => store.save(draft.id, source, relevantTo)}
+          onDiscard={() => store.discardPending(draft.id)}
+        />
+      </>
     )
   }
 
@@ -61,14 +76,7 @@ export function App() {
 
   return (
     <>
-      {error && (
-        <div className="banner" role="alert">
-          <span>{error}</span>
-          <button type="button" onClick={dismissError}>
-            Dismiss
-          </button>
-        </div>
-      )}
+      {banner}
       {renderView()}
     </>
   )
