@@ -62,4 +62,9 @@ export interface PendingCapture {
   previewUrl: string
   /** Present when the share carried the page behind the screenshot. */
   snapshot?: DomSnapshot
+  /**
+   * Name of the file still sitting in the iOS share queue. Held until the
+   * capture is committed, so killing the app loses nothing.
+   */
+  queueId?: string
 }

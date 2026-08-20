@@ -18,7 +18,7 @@ import {
   updateCaptureTags,
 } from '../lib/db'
 import { newId } from '../lib/id'
-import { drainPendingShares, onAppResume, type IncomingCapture } from '../lib/share'
+import { clearQueued, drainPendingShares, onAppResume, type IncomingCapture } from '../lib/share'
 import { relevantToSummaries, sourceSummaries, type TagFilter } from '../lib/tags'
 import { EMPTY_DEFAULTS, type Capture, type CaptureDefaults, type PendingCapture } from '../lib/types'
 
@@ -71,20 +71,30 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Object URLs for drafts are revoked by hand; React cannot see them.
   const pendingUrls = useRef(new Set<string>())
 
+  // Queue files stay on disk until their capture is committed, so every resume
+  // hands us the same shares again. Remember which are already on the sheet.
+  const queuedIds = useRef(new Set<string>())
+
   const enqueue = useCallback((incoming: IncomingCapture[] | Blob[]) => {
     if (incoming.length === 0) return
-    const drafts = incoming.map((item) => {
-      // Callers hand over either a bare image or an image plus its page.
-      const entry: IncomingCapture = item instanceof Blob ? { blob: item } : item
-      const previewUrl = URL.createObjectURL(entry.blob)
-      pendingUrls.current.add(previewUrl)
-      return {
-        id: newId(),
-        blob: entry.blob,
-        previewUrl,
-        ...(entry.snapshot ? { snapshot: entry.snapshot } : {}),
-      }
-    })
+    const drafts = incoming
+      .map((item): IncomingCapture => (item instanceof Blob ? { blob: item } : item))
+      // A share still in the queue arrives again on the next drain; it is the
+      // same screenshot, not a second one.
+      .filter((entry) => !entry.queueId || !queuedIds.current.has(entry.queueId))
+      .map((entry) => {
+        const previewUrl = URL.createObjectURL(entry.blob)
+        pendingUrls.current.add(previewUrl)
+        if (entry.queueId) queuedIds.current.add(entry.queueId)
+        return {
+          id: newId(),
+          blob: entry.blob,
+          previewUrl,
+          ...(entry.snapshot ? { snapshot: entry.snapshot } : {}),
+          ...(entry.queueId ? { queueId: entry.queueId } : {}),
+        }
+      })
+    if (drafts.length === 0) return
     setPending((current) => [...current, ...drafts])
   }, [])
 
@@ -93,11 +103,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     pendingUrls.current.delete(draft.previewUrl)
   }, [])
 
+  // The single exit for a draft, whether it was saved or thrown away. Both
+  // mean the app is done with it, so this is where the queue file is released.
   const discardPending = useCallback(
     (id: string) => {
       setPending((current) => {
         const draft = current.find((p) => p.id === id)
-        if (draft) releaseDraft(draft)
+        if (draft) {
+          releaseDraft(draft)
+          if (draft.queueId) {
+            queuedIds.current.delete(draft.queueId)
+            void clearQueued([draft.queueId])
+          }
+        }
         return current.filter((p) => p.id !== id)
       })
     },

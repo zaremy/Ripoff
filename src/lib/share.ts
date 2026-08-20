@@ -19,6 +19,8 @@ import type { DomSnapshot } from './domSnapshot'
 export interface IncomingCapture {
   blob: Blob
   snapshot?: DomSnapshot
+  /** Set when this came off the iOS queue, so it can be released after saving. */
+  queueId?: string
 }
 
 interface PendingShare {
@@ -72,17 +74,37 @@ export async function drainPendingShares(): Promise<IncomingCapture[]> {
     for (const item of items) {
       const { snapshot } = parseSnapshot(item.snapshot)
       const blob = await imageForShare(item, snapshot)
+      // A share we could not turn into an image stays queued. Clearing it here
+      // would delete the only copy of something the user explicitly shared.
       if (!blob) continue
-      incoming.push(snapshot ? { blob, snapshot } : { blob })
+      incoming.push({ blob, queueId: item.id, ...(snapshot ? { snapshot } : {}) })
     }
 
-    // Only clear once the bytes are safely in JS memory and about to be saved.
-    await ShareIntake.clearPendingShares({ ids: items.map((i) => i.id) })
+    // Deliberately not cleared here. JS memory is not durable: iOS kills
+    // backgrounded webviews, and it does so most eagerly right after a share
+    // extension has launched the app. The queue is the only copy until the
+    // capture is committed, so releasing it is `save`'s job.
     return incoming
   } catch {
     return []
   } finally {
     draining = false
+  }
+}
+
+/**
+ * Release shares the app has finished with: committed to the library, or
+ * discarded on purpose. Anything not released stays queued and comes back on
+ * the next drain, which is what makes a mid-tagging app kill survivable.
+ */
+export async function clearQueued(ids: string[]): Promise<void> {
+  const wanted = ids.filter((id) => id.length > 0)
+  if (wanted.length === 0) return
+  if (!Capacitor.isNativePlatform() || !Capacitor.isPluginAvailable('ShareIntake')) return
+  try {
+    await ShareIntake.clearPendingShares({ ids: wanted })
+  } catch {
+    // Left queued rather than lost; the next drain picks it up again.
   }
 }
 
