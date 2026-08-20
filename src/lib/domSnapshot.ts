@@ -33,7 +33,14 @@ export interface DomSnapshot {
 }
 
 /** Elements that carry no visual meaning once the page has stopped running. */
-const STRIP_SELECTOR = 'script, noscript, template, link[rel~="stylesheet"], style'
+const STRIP_SELECTOR =
+  'script, noscript, template, link[rel~="stylesheet"], style, iframe, object, embed, frame, frameset, meta[http-equiv="refresh" i]'
+
+/** Schemes a stored snapshot is allowed to still point at once re-rendered. */
+const SAFE_SCHEME = /^(?:https?:|mailto:|tel:|data:|blob:|#)/i
+
+/** Attributes that can navigate or fetch, and so can carry a script URL. */
+const URL_BEARING = new Set(['href', 'src', 'srcset', 'action', 'formaction', 'poster', 'data'])
 
 const URL_ATTRIBUTES: ReadonlyArray<[string, string]> = [
   ['img', 'src'],
@@ -56,6 +63,7 @@ export function snapshotDocument(doc: Document = document): DomSnapshot {
     node.remove()
   }
   absolutizeUrls(root, doc.baseURI)
+  stripActiveContent(root)
 
   const head = root.querySelector('head') ?? root.insertBefore(doc.createElement('head'), root.firstChild)
   if (css) {
@@ -120,7 +128,12 @@ function carryFormState(source: Element, clone: Element): void {
     if (!copy) return
 
     if (original instanceof HTMLInputElement && copy instanceof HTMLInputElement) {
-      if (original.type === 'checkbox' || original.type === 'radio') {
+      // A password is dots on screen and plaintext in the DOM, and a hidden
+      // field is usually a CSRF or session token. Neither is part of what the
+      // screenshot showed, and this markup gets pasted into a chat later.
+      if (original.type === 'password' || original.type === 'hidden') {
+        copy.removeAttribute('value')
+      } else if (original.type === 'checkbox' || original.type === 'radio') {
         if (original.checked) copy.setAttribute('checked', '')
         else copy.removeAttribute('checked')
       } else {
@@ -133,6 +146,33 @@ function carryFormState(source: Element, clone: Element): void {
       if (chosen) chosen.setAttribute('selected', '')
     }
   })
+}
+
+/**
+ * Removing a page's ability to act.
+ *
+ * Dropping `<script>` elements is not the same as dropping script: an inline
+ * `onerror` fires the moment a broken image is laid out, and `javascript:` in
+ * an href survives any amount of element filtering. A stored snapshot is
+ * third-party code that later gets re-rendered inside the app, so anything
+ * executable has to come out here, at the point of capture.
+ *
+ * Runs after `absolutizeUrls`, so a relative href has already become http(s)
+ * and whatever is left with an odd scheme really is odd.
+ */
+function stripActiveContent(root: HTMLElement): void {
+  for (const element of Array.from(root.querySelectorAll('*'))) {
+    for (const attribute of Array.from(element.attributes)) {
+      const name = attribute.name.toLowerCase()
+      if (name.startsWith('on')) {
+        element.removeAttribute(attribute.name)
+        continue
+      }
+      if (!URL_BEARING.has(name)) continue
+      const value = attribute.value.trim()
+      if (value && !SAFE_SCHEME.test(value)) element.removeAttribute(attribute.name)
+    }
+  }
 }
 
 /**

@@ -100,3 +100,53 @@ describe('urls in a snapshot', () => {
     expect(html).toContain(`${new URL('b.png', document.baseURI).href} 2x`)
   })
 })
+
+describe('what a snapshot refuses to carry', () => {
+  it('drops inline event handlers, which survive stripping <script>', () => {
+    document.body.innerHTML =
+      '<img id="a" src="/logo.png" onerror="steal()"><div onclick="x()">hi</div>'
+
+    const { html } = snapshotDocument(document)
+
+    expect(html).not.toContain('onerror')
+    expect(html).not.toContain('onclick')
+    // The image itself is still part of the reference.
+    expect(html).toContain('logo.png')
+  })
+
+  it('drops javascript: urls but keeps ordinary links', () => {
+    document.body.innerHTML =
+      '<a id="bad" href="javascript:steal()">x</a><a id="ok" href="https://example.com/a">y</a>'
+
+    const { html } = snapshotDocument(document)
+
+    expect(html).not.toContain('javascript:')
+    expect(html).toContain('https://example.com/a')
+  })
+
+  it('drops frames and meta refresh along with scripts', () => {
+    document.body.innerHTML = '<iframe src="https://evil.example"></iframe><object></object>'
+
+    const { html } = snapshotDocument(document)
+
+    expect(html).not.toContain('<iframe')
+    expect(html).not.toContain('<object')
+  })
+
+  // The screenshot showed dots. The markup would show the password, and this
+  // markup gets pasted into a chat window later.
+  it('never carries a password or a hidden token', () => {
+    document.body.innerHTML =
+      '<input type="password" id="p"><input type="hidden" id="h"><input type="text" id="t">'
+    ;(document.getElementById('p') as HTMLInputElement).value = 'hunter2'
+    ;(document.getElementById('h') as HTMLInputElement).value = 'csrf-abc123'
+    ;(document.getElementById('t') as HTMLInputElement).value = 'four crowns'
+
+    const { html } = snapshotDocument(document)
+
+    expect(html).not.toContain('hunter2')
+    expect(html).not.toContain('csrf-abc123')
+    // What the user actually typed in the open is still part of the capture.
+    expect(html).toContain('four crowns')
+  })
+})

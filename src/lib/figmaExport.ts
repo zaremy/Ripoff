@@ -31,6 +31,11 @@ export async function snapshotToFigmaLayers(
   // Offscreen rather than hidden: `display: none` gives every element a zero
   // rect, which would flatten the entire export.
   iframe.setAttribute('aria-hidden', 'true')
+  // allow-same-origin WITHOUT allow-scripts: the parent can still read the
+  // frame's DOM, which html-figma needs for getBoundingClientRect, but nothing
+  // inside the captured page can run. Belt to stripActiveContent's braces,
+  // because the snapshot may predate that scrub or have arrived as a file.
+  iframe.setAttribute('sandbox', 'allow-same-origin')
   iframe.style.cssText = [
     'position: fixed',
     'left: -100000px',

@@ -4,7 +4,19 @@ var InspoSnapshot = (function(exports) {
 	Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 	//#region src/lib/domSnapshot.ts
 	/** Elements that carry no visual meaning once the page has stopped running. */
-	var STRIP_SELECTOR = "script, noscript, template, link[rel~=\"stylesheet\"], style";
+	var STRIP_SELECTOR = "script, noscript, template, link[rel~=\"stylesheet\"], style, iframe, object, embed, frame, frameset, meta[http-equiv=\"refresh\" i]";
+	/** Schemes a stored snapshot is allowed to still point at once re-rendered. */
+	var SAFE_SCHEME = /^(?:https?:|mailto:|tel:|data:|blob:|#)/i;
+	/** Attributes that can navigate or fetch, and so can carry a script URL. */
+	var URL_BEARING = /* @__PURE__ */ new Set([
+		"href",
+		"src",
+		"srcset",
+		"action",
+		"formaction",
+		"poster",
+		"data"
+	]);
 	var URL_ATTRIBUTES = [
 		["img", "src"],
 		["img", "srcset"],
@@ -21,6 +33,7 @@ var InspoSnapshot = (function(exports) {
 		carryFormState(doc.documentElement, root);
 		for (const node of Array.from(root.querySelectorAll(STRIP_SELECTOR))) node.remove();
 		absolutizeUrls(root, doc.baseURI);
+		stripActiveContent(root);
 		const head = root.querySelector("head") ?? root.insertBefore(doc.createElement("head"), root.firstChild);
 		if (css) {
 			const style = doc.createElement("style");
@@ -74,7 +87,8 @@ var InspoSnapshot = (function(exports) {
 			const copy = copies[index];
 			if (!copy) return;
 			if (original instanceof HTMLInputElement && copy instanceof HTMLInputElement) {
-				if (original.type === "checkbox" || original.type === "radio") {
+				if (original.type === "password" || original.type === "hidden") copy.removeAttribute("value");
+				else if (original.type === "checkbox" || original.type === "radio") {
 					if (original.checked) copy.setAttribute("checked", "");
 					else copy.removeAttribute("checked");
 				} else copy.setAttribute("value", original.value);
@@ -84,6 +98,30 @@ var InspoSnapshot = (function(exports) {
 				if (chosen) chosen.setAttribute("selected", "");
 			}
 		});
+	}
+	/**
+	* Removing a page's ability to act.
+	*
+	* Dropping `<script>` elements is not the same as dropping script: an inline
+	* `onerror` fires the moment a broken image is laid out, and `javascript:` in
+	* an href survives any amount of element filtering. A stored snapshot is
+	* third-party code that later gets re-rendered inside the app, so anything
+	* executable has to come out here, at the point of capture.
+	*
+	* Runs after `absolutizeUrls`, so a relative href has already become http(s)
+	* and whatever is left with an odd scheme really is odd.
+	*/
+	function stripActiveContent(root) {
+		for (const element of Array.from(root.querySelectorAll("*"))) for (const attribute of Array.from(element.attributes)) {
+			const name = attribute.name.toLowerCase();
+			if (name.startsWith("on")) {
+				element.removeAttribute(attribute.name);
+				continue;
+			}
+			if (!URL_BEARING.has(name)) continue;
+			const value = attribute.value.trim();
+			if (value && !SAFE_SCHEME.test(value)) element.removeAttribute(attribute.name);
+		}
 	}
 	/**
 	* Relative URLs mean nothing once the markup is stored somewhere else, so they
