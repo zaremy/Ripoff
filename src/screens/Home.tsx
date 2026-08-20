@@ -3,12 +3,13 @@ import { CaptureCard } from '../components/CaptureCard'
 import { Masonry } from '../components/Masonry'
 import { incomingFromFiles } from '../lib/share'
 import { selectCaptures } from '../lib/tags'
+import { displayAspect } from '../lib/layout'
 import type { Capture } from '../lib/types'
 import { useStore } from '../state/store'
 
 // Hoisted so the masonry layout memo is not invalidated every render.
 const captureKey = (capture: Capture) => capture.id
-const captureAspect = (capture: Capture) => capture.width / capture.height
+const captureAspect = displayAspect
 
 /**
  * Everything, newest first. No dashboard, no metrics, no prompt box.

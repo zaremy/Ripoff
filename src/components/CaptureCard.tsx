@@ -1,4 +1,5 @@
 import { useImageUrl } from '../hooks/useImageUrl'
+import { displayAspect } from '../lib/layout'
 import type { Capture } from '../lib/types'
 
 interface CaptureCardProps {
@@ -14,14 +15,14 @@ interface CaptureCardProps {
  */
 export function CaptureCard({ capture, onOpen, onSource, onRelevantTo }: CaptureCardProps) {
   const url = useImageUrl(capture.thumb_uri)
-  const aspect = capture.width > 0 && capture.height > 0 ? capture.width / capture.height : 0.75
+  const shown = displayAspect(capture)
 
   return (
     <figure className="card">
       <button
         type="button"
         className="card-image"
-        style={{ aspectRatio: String(aspect) }}
+        style={{ aspectRatio: String(shown) }}
         onClick={() => onOpen(capture)}
         aria-label={`Open capture from ${capture.source}`}
       >

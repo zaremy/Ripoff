@@ -2,12 +2,13 @@ import { useMemo } from 'react'
 import { CaptureCard } from '../components/CaptureCard'
 import { Masonry } from '../components/Masonry'
 import { selectCaptures, summaryFor, type TagFilter } from '../lib/tags'
+import { displayAspect } from '../lib/layout'
 import type { Capture } from '../lib/types'
 import { useStore } from '../state/store'
 
 // Hoisted so the masonry layout memo is not invalidated every render.
 const captureKey = (capture: Capture) => capture.id
-const captureAspect = (capture: Capture) => capture.width / capture.height
+const captureAspect = displayAspect
 
 /**
  * A board is just a tag. Two boards exist, and they answer opposite questions.

@@ -23,9 +23,9 @@ export function Masonry<T>({
   items,
   keyOf,
   aspectOf,
-  captionHeight = 46,
-  targetColumnWidth = 190,
-  gap = 14,
+  captionHeight = 38,
+  targetColumnWidth = 168,
+  gap = 10,
   children,
 }: MasonryProps<T>) {
   const containerRef = useRef<HTMLDivElement>(null)

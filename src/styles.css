@@ -1,38 +1,60 @@
 /*
- * The product should feel like an inspiration wall, not a database.
- * Chrome stays quiet; the screenshots carry the colour.
+ * Design notes
+ *
+ * The product is an inspiration wall, so the screenshots have to be the only
+ * loud thing on screen. Everything here is built to get out of their way.
+ *
+ * Colour   Neutrals sit very slightly cool, so the warm screenshots most
+ *          products produce read as warm against them. One accent only - an
+ *          ink indigo - and it is spent entirely on the FOR tag, which is the
+ *          relationship the whole product exists to record. FROM is weight,
+ *          not colour, so the two never compete.
+ * Type     The system face, used properly: one scale, tight tracking on
+ *          display sizes, tabular numerals wherever counts line up. No web
+ *          font - the app has to work in airplane mode, and a font request is
+ *          a network request.
+ * Layout   Tags read as text under the image, and are pills only inside the
+ *          pickers, where you are choosing rather than reading. Cards have no
+ *          border: a frame around a screenshot is chrome around chrome.
  */
 
 :root {
-  --bg: #fbfaf8;
+  color-scheme: light dark;
+
+  --bg: #f4f4f6;
   --surface: #ffffff;
-  --ink: #16150f;
-  --ink-soft: #6c675c;
-  --line: #e6e2d9;
-  --accent: #1c1b16;
-  --source-bg: #efece4;
-  --source-ink: #37342b;
-  --relevant-bg: #e7eefb;
-  --relevant-ink: #26406e;
-  --danger: #a72b1e;
-  --radius: 14px;
+  --ink: #17171c;
+  --ink-soft: #6f6f7d;
+  --ink-faint: #9a9aa8;
+  --line: #e4e4ea;
+  --accent: #494ec2;
+  --accent-soft: #ecedfa;
+  --danger: #b3261e;
+  --shadow: 0 1px 2px rgba(20, 20, 30, 0.06), 0 6px 16px rgba(20, 20, 30, 0.05);
+  /* The mat a previewed screenshot sits on, so it never bleeds into white. */
+  --mat: #e7e7ec;
+
+  --radius-card: 10px;
+  --radius-panel: 14px;
+  --radius-pill: 999px;
+
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #121210;
-    --surface: #1c1c19;
-    --ink: #f2f0ea;
-    --ink-soft: #9b968a;
-    --line: #2c2c27;
-    --accent: #f2f0ea;
-    --source-bg: #2a2924;
-    --source-ink: #ddd8ca;
-    --relevant-bg: #1f2b40;
-    --relevant-ink: #accbfb;
-    --danger: #e4705f;
+    --bg: #0d0d0f;
+    --surface: #161619;
+    --ink: #ededf0;
+    --ink-soft: #8b8b98;
+    --ink-faint: #63636f;
+    --line: #242429;
+    --accent: #a3a7f5;
+    --accent-soft: #1e1f33;
+    --danger: #ef8579;
+    --shadow: none;
+    --mat: #08080a;
   }
 }
 
@@ -50,7 +72,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font: 15px/1.4 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font: 15px/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;
 }
@@ -69,11 +91,24 @@ img {
   max-width: 100%;
 }
 
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
 /* ---------- layout ---------- */
 
 .screen {
   min-height: 100%;
-  padding: calc(var(--safe-top) + 10px) 14px calc(var(--safe-bottom) + 32px);
+  padding: calc(var(--safe-top) + 8px) 12px calc(var(--safe-bottom) + 40px);
 }
 
 .loading {
@@ -83,12 +118,12 @@ img {
 .topbar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 16px;
+  gap: 8px;
+  margin-bottom: 14px;
   position: sticky;
   top: 0;
   z-index: 3;
-  padding: 6px 0 10px;
+  padding: 6px 0 8px;
   background: var(--bg);
 }
 
@@ -99,7 +134,7 @@ img {
   left: 0;
   right: 0;
   top: 100%;
-  height: 10px;
+  height: 12px;
   background: linear-gradient(var(--bg), transparent);
   pointer-events: none;
 }
@@ -107,8 +142,8 @@ img {
 .search {
   flex: 1;
   min-width: 0;
-  padding: 11px 14px;
-  border-radius: 999px;
+  padding: 9px 13px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--ink);
@@ -117,30 +152,41 @@ img {
   appearance: none;
 }
 
-.search:focus {
-  outline: 2px solid var(--relevant-ink);
-  outline-offset: -1px;
+.search::placeholder {
+  color: var(--ink-faint);
 }
 
 .add {
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   flex: none;
-  border-radius: 999px;
-  background: var(--accent);
-  color: var(--bg);
-  font-size: 24px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 20px;
   line-height: 1;
+  transition: background 120ms ease;
+}
+
+.add:active {
+  background: var(--accent-soft);
 }
 
 .back {
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   flex: none;
-  border-radius: 999px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  font-size: 17px;
+  align-self: flex-start;
+  margin-top: 1px;
+  border-radius: var(--radius-pill);
+  color: var(--ink-soft);
+  font-size: 18px;
+}
+
+.detail .back {
+  align-self: center;
+  margin-top: 0;
 }
 
 .board-title {
@@ -151,47 +197,62 @@ img {
 .board-title h1 {
   margin: 0;
   font-size: 19px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-weight: 640;
+  letter-spacing: -0.021em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .board-title p {
-  margin: 2px 0 0;
-  font-size: 13px;
+  margin: 1px 0 0;
+  font-size: 12.5px;
   color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
 }
 
 .ghost {
   flex: none;
-  padding: 8px 12px;
-  border-radius: 999px;
+  padding: 7px 10px;
+  border-radius: var(--radius-pill);
   font-size: 14px;
   color: var(--ink-soft);
 }
 
+/* Next to a two-line board title, this is a way out, not a second heading. */
+.topbar .board-title + .ghost {
+  align-self: flex-start;
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
 .primary {
   flex: none;
-  padding: 9px 18px;
-  border-radius: 999px;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
   background: var(--accent);
-  color: var(--bg);
+  color: #fff;
   font-size: 15px;
   font-weight: 600;
 }
 
+@media (prefers-color-scheme: dark) {
+  .primary {
+    color: #14141c;
+  }
+}
+
 .primary:disabled {
-  opacity: 0.35;
+  opacity: 0.4;
 }
 
 .danger {
-  padding: 8px 14px;
-  border-radius: 999px;
+  padding: 7px 13px;
+  border-radius: var(--radius-pill);
   background: var(--danger);
   color: #fff;
   font-weight: 600;
+  font-size: 14px;
 }
 
 .danger-text {
@@ -230,16 +291,24 @@ img {
 .card-image {
   display: block;
   width: 100%;
-  border-radius: var(--radius);
+  border-radius: var(--radius-card);
   overflow: hidden;
   background: var(--surface);
-  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  transition: transform 120ms ease;
+}
+
+.card-image:active {
+  transform: scale(0.985);
 }
 
 .card-image img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  /* Screenshots identify themselves at the top - title, nav, status bar - so
+     a crop takes it off the bottom. */
+  object-position: top center;
 }
 
 .card-placeholder {
@@ -247,77 +316,149 @@ img {
   width: 100%;
   height: 100%;
   min-height: 80px;
-  background: var(--source-bg);
+  background: var(--line);
 }
 
+/*
+ * The caption is the product's whole point, so it has to be readable - but it
+ * is also the thing most likely to drown the picture, so it is set as quiet
+ * text rather than as a stack of pills.
+ */
 .card-meta {
-  padding: 7px 2px 0;
+  padding: 6px 2px 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 3px;
+  gap: 1px;
 }
 
 .card-relevant {
   display: flex;
   flex-wrap: wrap;
-  gap: 3px;
+  column-gap: 6px;
 }
 
-/* ---------- tags ---------- */
+/* These read as running text, so the chip's inner gap has no place here. */
+.card-meta .tag,
+.detail-meta .tag {
+  gap: 0;
+}
+
+.card-meta .tag-source,
+.detail-meta .tag-source {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.006em;
+  color: var(--ink);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-meta .tag-relevant,
+.detail-meta .tag-relevant {
+  font-size: 12.5px;
+  color: var(--accent);
+  text-align: left;
+}
+
+.card-meta .tag-source:active,
+.card-meta .tag-relevant:active,
+.detail-meta .tag-source:active,
+.detail-meta .tag-relevant:active {
+  opacity: 0.55;
+}
+
+/* ---------- tags as chips, inside the pickers only ---------- */
 
 .tag {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   max-width: 100%;
-  padding: 3px 9px;
-  border-radius: 999px;
-  font-size: 12.5px;
-  line-height: 1.35;
   text-align: left;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.tag-source {
-  background: var(--source-bg);
-  color: var(--source-ink);
+.picker .tag,
+.tag-create {
+  padding: 6px 11px;
+  border-radius: var(--radius-pill);
+  font-size: 13.5px;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.picker .tag-source {
+  background: var(--surface);
+  color: var(--ink-soft);
   font-weight: 600;
 }
 
-.tag-relevant {
-  background: var(--relevant-bg);
-  color: var(--relevant-ink);
+.picker .tag-relevant {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* What you have chosen should not look like what you could choose. */
+.picker .tag-source.selected {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.picker .tag-relevant.selected {
+  background: var(--accent);
+  color: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .picker .tag-relevant.selected {
+    color: #14141c;
+  }
+}
+
+.picker .tag.selected button {
+  opacity: 0.7;
 }
 
 .tag-create {
   background: var(--accent);
-  color: var(--bg);
+  color: #fff;
   font-weight: 600;
 }
 
-.tag.selected {
-  padding-right: 5px;
+@media (prefers-color-scheme: dark) {
+  .tag-create {
+    color: #14141c;
+  }
 }
 
-.tag.selected button {
+.picker .tag.selected {
+  padding-right: 6px;
+}
+
+.picker .tag.selected button {
   font-size: 15px;
   line-height: 1;
-  opacity: 0.6;
+  opacity: 0.55;
   padding: 0 3px;
 }
 
 .empty {
-  padding: 48px 16px;
+  padding: 56px 16px;
   text-align: center;
   color: var(--ink-soft);
+  font-size: 14.5px;
 }
 
 .empty-hint {
-  max-width: 28em;
-  margin: 8px auto 0;
+  max-width: 26em;
+  margin: 6px auto 0;
   font-size: 13.5px;
+  color: var(--ink-faint);
+  line-height: 1.5;
 }
 
 /* ---------- capture sheet ---------- */
@@ -346,8 +487,9 @@ img {
   flex: 1;
   min-width: 0;
   text-align: center;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
+  letter-spacing: 0.005em;
   color: var(--ink-soft);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -356,41 +498,50 @@ img {
 
 .sheet-body {
   flex: 1;
-  padding: 14px 14px calc(var(--safe-bottom) + 32px);
+  padding: 14px 14px calc(var(--safe-bottom) + 40px);
 }
 
 .sheet-preview {
-  border-radius: var(--radius);
+  border-radius: var(--radius-panel);
   overflow: hidden;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  max-height: 34vh;
+  background: var(--mat);
+  height: 30vh;
   display: flex;
+  align-items: center;
   justify-content: center;
+  padding: 12px;
 }
 
 .sheet-preview img {
-  max-height: 34vh;
+  max-height: 100%;
   width: auto;
   object-fit: contain;
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+}
+
+.sheet-note {
+  margin: 9px 0 0;
+  font-size: 12.5px;
+  color: var(--ink-soft);
 }
 
 .picker {
-  margin-top: 22px;
+  margin-top: 24px;
 }
 
 .picker-head h2 {
   margin: 0;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--ink-soft);
+  color: var(--ink-faint);
 }
 
 .picker-head p {
-  margin: 2px 0 0;
-  font-size: 13px;
+  margin: 3px 0 0;
+  font-size: 14px;
   color: var(--ink-soft);
 }
 
@@ -399,11 +550,6 @@ img {
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 10px;
-}
-
-.picker-selected .tag {
-  font-size: 14px;
-  padding: 6px 12px;
 }
 
 .picker-input {
@@ -417,6 +563,10 @@ img {
   font-size: 16px;
 }
 
+.picker-input::placeholder {
+  color: var(--ink-faint);
+}
+
 .picker-suggestions {
   display: flex;
   flex-wrap: wrap;
@@ -424,18 +574,13 @@ img {
   margin-top: 10px;
 }
 
-.picker-suggestions .tag {
-  font-size: 13.5px;
-  padding: 6px 11px;
-}
-
 /* ---------- detail ---------- */
 
 .detail-image {
-  border-radius: var(--radius);
+  border-radius: var(--radius-card);
   overflow: hidden;
-  border: 1px solid var(--line);
   background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .detail-image img {
@@ -445,11 +590,24 @@ img {
 
 .detail-meta,
 .detail-edit {
-  margin-top: 16px;
+  margin-top: 18px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 10px;
+  gap: 12px;
+}
+
+.detail-meta .tag-source {
+  font-size: 16px;
+}
+
+.detail-meta .tag-relevant {
+  font-size: 14px;
+}
+
+.detail-meta .card-relevant {
+  gap: 4px 10px;
+  margin-top: -8px;
 }
 
 .confirm {
@@ -462,33 +620,27 @@ img {
 
 /* ---------- handoff ---------- */
 
-.sheet-note {
-  margin: 10px 0 0;
-  font-size: 13px;
-  color: var(--ink-soft);
-}
-
 .handoff {
   width: 100%;
-  margin-top: 6px;
-  padding: 14px;
+  padding: 13px 14px;
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: var(--radius-panel);
   background: var(--surface);
 }
 
 .handoff-head h2 {
   margin: 0;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--ink-soft);
+  color: var(--ink-faint);
 }
 
 .handoff-head p {
   margin: 3px 0 0;
-  font-size: 14px;
+  font-size: 13.5px;
+  color: var(--ink-soft);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -498,12 +650,14 @@ img {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 11px;
 }
 
 .bordered {
   border: 1px solid var(--line);
   color: var(--ink);
+  font-size: 13.5px;
+  padding: 7px 13px;
 }
 
 .bordered:disabled {
@@ -512,6 +666,17 @@ img {
 
 .handoff-status {
   margin: 10px 0 0;
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--ink-soft);
+}
+
+/*
+ * Several FOR tags read as one run-on phrase without something between them.
+ * The comma trails the tag it follows, so a wrap leaves it at the end of the
+ * line rather than orphaning a separator at the start of the next one.
+ */
+.card-relevant button:not(:last-child)::after,
+.detail-meta .card-relevant button:not(:last-child)::after {
+  content: ',';
+  color: var(--ink-faint);
 }
