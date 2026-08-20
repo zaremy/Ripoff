@@ -8,12 +8,19 @@ import UniformTypeIdentifiers
 /// container and bring Inspo forward. That keeps one source of truth for
 /// captures and makes the share itself instant.
 ///
-/// Two kinds of share arrive here. A screenshot carries pixels and no DOM. A
-/// page shared from Safari runs `share-preprocess.js` in the tab and carries
-/// the serialized DOM but no pixels. Both are queued; the app draws a cover
-/// for the second kind.
+/// One class, two extensions. Whether a DOM exists is not something iOS lets
+/// the app decide - a screenshot carries pixels and no DOM, a page shared from
+/// Safari carries the serialized DOM and no pixels - so rather than guessing
+/// from whatever happened to be attached, Inspo ships two share entries and
+/// lets the share sheet ask:
 ///
-/// Add this file to the **Share Extension** target only.
+///   Inspo       - images, any app.        -> pixels
+///   Inspo Page  - web pages, Safari only. -> DOM via share-preprocess.js
+///
+/// Both write into the same queue, and this controller handles either shape,
+/// including the case where a single share somehow carries both.
+///
+/// Add this file to **both** Share Extension targets.
 class ShareViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()

@@ -118,15 +118,18 @@ The exporter is loaded on demand, so it costs nothing until you use it.
 
 ### Where a snapshot comes from
 
-| Surface | What arrives |
-| --- | --- |
-| iOS: share a screenshot | image, no DOM |
-| iOS: share a page from Safari | DOM via `share-preprocess.js`, no image |
-| Desktop: drop or pick an image with an `.html` file | both |
+iOS never hands over pixels and DOM in one gesture, so the app ships two share
+buttons rather than one that guesses which you meant:
 
-iOS never hands over both in one gesture. A page-only share still becomes a
-normal capture — the app renders the markup to an image so the wall never shows
-a blank tile.
+| Surface | Share sheet button | What arrives |
+| --- | --- | --- |
+| iOS: any image, any app | **Inspo** | image, no DOM |
+| iOS: a page in Safari | **Inspo Page** | DOM via `share-preprocess.js`, no image |
+| Desktop: drop or pick an image with an `.html` file | — | both |
+
+Both buttons feed the same queue and the same capture sheet. A page-only share
+still becomes a normal capture — the app renders the markup to an image so the
+wall never shows a blank tile.
 
 The serializer lives once, in `src/lib/domSnapshot.ts`; the script Safari runs
 is generated from it by `npm run build:preprocess`.
