@@ -23,6 +23,8 @@ class ShareViewController: UIViewController {
 
     private let backdrop = UIImageView()
     private let backdropDim = UIView()
+    private let topScrim = UIView()
+    private let topScrimLayer = CAGradientLayer()
     private let card = UIView()
     private let thumbnail = UIImageView()
     private let caption = UILabel()
@@ -67,6 +69,31 @@ class ShareViewController: UIViewController {
                 filler.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             ])
         }
+
+        // A screenshot carries its own status bar, so without this you get two
+        // stacked on top of each other. The gradient buries the captured one
+        // and gives the live one something dark to sit on.
+        // Solid through the status-bar zone rather than a soft fade: the
+        // captured chrome is white text, and a gradient alone leaves it faintly
+        // legible right where the live clock sits. Fades out below that.
+        topScrimLayer.colors = [
+            UIColor.black.cgColor,
+            UIColor.black.cgColor,
+            UIColor.black.withAlphaComponent(0).cgColor,
+        ]
+        topScrimLayer.locations = [0, 0.45, 1]
+        topScrim.layer.addSublayer(topScrimLayer)
+        topScrim.isUserInteractionEnabled = false
+        topScrim.alpha = 0
+        topScrim.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(topScrim)
+
+        NSLayoutConstraint.activate([
+            topScrim.topAnchor.constraint(equalTo: view.topAnchor),
+            topScrim.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            topScrim.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            topScrim.heightAnchor.constraint(equalToConstant: 150),
+        ])
 
         card.backgroundColor = .systemBackground
         card.layer.cornerRadius = 20
@@ -148,6 +175,12 @@ class ShareViewController: UIViewController {
             form.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -18),
             form.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -18),
         ])
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        // CALayer does not participate in Auto Layout.
+        topScrimLayer.frame = topScrim.bounds
     }
 
     private func label(_ text: String) -> UILabel {
@@ -260,6 +293,7 @@ class ShareViewController: UIViewController {
                 self.thumbnail.image = image
                 self.backdrop.image = image
                 self.backdropDim.alpha = 1
+                self.topScrim.alpha = 1
                 self.caption.text = "Tag it with the product it came from and the idea it might help."
             } else if self.material.snapshot != nil {
                 self.caption.text = "Page markup captured. Its cover is drawn on save."
