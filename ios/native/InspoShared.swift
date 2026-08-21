@@ -19,6 +19,16 @@ enum InspoShared {
     /// image it belongs to.
     static let snapshotExtension = "inspodom"
 
+    /// Sidecar holding the tags chosen in the share sheet, named after the
+    /// image it belongs to. Present when the extension did the tagging, absent
+    /// when the capture still needs the sheet inside the app.
+    static let tagsExtension = "inspotags"
+
+    /// The app's tag vocabulary, mirrored here so the extension can offer the
+    /// same pickers. The library itself lives in IndexedDB inside the app's
+    /// webview, which another process cannot read.
+    static let vocabularyFileName = "vocabulary.json"
+
     static func queueDirectory() -> URL? {
         guard let container = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: appGroupId
@@ -33,6 +43,17 @@ enum InspoShared {
         }
         return directory
     }
+
+    /// Lives beside the queue folder rather than inside it, because everything
+    /// inside the queue is treated as shared material.
+    static func vocabularyURL() -> URL? {
+        FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: appGroupId)?
+            .appendingPathComponent(vocabularyFileName)
+    }
+
+    /// Extensions that are sidecars rather than shared images.
+    static let sidecarExtensions: Set<String> = [snapshotExtension, tagsExtension]
 
     static func mimeType(forExtension ext: String) -> String {
         switch ext.lowercased() {

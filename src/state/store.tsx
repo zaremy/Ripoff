@@ -18,7 +18,13 @@ import {
   updateCaptureTags,
 } from '../lib/db'
 import { newId } from '../lib/id'
-import { clearQueued, drainPendingShares, onAppResume, type IncomingCapture } from '../lib/share'
+import {
+  clearQueued,
+  drainPendingShares,
+  onAppResume,
+  publishVocabulary,
+  type IncomingCapture,
+} from '../lib/share'
 import { relevantToSummaries, sourceSummaries, type TagFilter } from '../lib/tags'
 import { EMPTY_DEFAULTS, type Capture, type CaptureDefaults, type PendingCapture } from '../lib/types'
 
@@ -141,14 +147,44 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  // A share the sheet already tagged needs no sheet here. Both tags have to be
+  // present, because a capture is the relationship between them.
+  const commitTagged = useCallback(async (item: IncomingCapture) => {
+    const tags = item.tags
+    if (!tags) return
+    if (item.queueId) queuedIds.current.add(item.queueId)
+    try {
+      const capture = await createCapture({
+        blob: item.blob,
+        source: tags.source,
+        relevant_to: tags.relevant_to,
+        ...(item.snapshot ? { snapshot: item.snapshot } : {}),
+      })
+      setCaptures((current) => [capture, ...current])
+      setDefaults((current) => applyTagMemory(current, capture.source, capture.relevant_to))
+      if (item.queueId) void clearQueued([item.queueId])
+    } catch (e) {
+      // Left queued rather than lost, and shown so it is not a silent drop.
+      if (item.queueId) queuedIds.current.delete(item.queueId)
+      setError(messageFor(e))
+    }
+  }, [])
+
   // Anything the iOS Share Extension queued, on launch and on every resume.
   useEffect(() => {
     const pull = () => {
-      void drainPendingShares().then((incoming) => enqueue(incoming))
+      void drainPendingShares().then((incoming) => {
+        const complete = (item: IncomingCapture) =>
+          Boolean(item.tags?.source && item.tags.relevant_to.length > 0)
+        // A half-tagged share still goes to the sheet, prefilled, rather than
+        // being rejected by createCapture's own validation.
+        enqueue(incoming.filter((item) => !complete(item)))
+        for (const item of incoming.filter(complete)) void commitTagged(item)
+      })
     }
     pull()
     return onAppResume(pull)
-  }, [enqueue])
+  }, [enqueue, commitTagged])
 
   useEffect(() => {
     const urls = pendingUrls.current
@@ -228,6 +264,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     () => relevantToSummaries(captures).map((s) => s.value),
     [captures],
   )
+
+  // The share sheet is a separate process and cannot read IndexedDB, so the
+  // pickers it offers come from this mirror.
+  useEffect(() => {
+    if (!ready) return
+    void publishVocabulary({
+      sources: knownSources,
+      relevantTo: knownRelevantTo,
+      lastSource: defaults.source ?? '',
+      lastRelevantTo: defaults.relevant_to,
+    })
+  }, [ready, knownSources, knownRelevantTo, defaults])
 
   const view = stack[stack.length - 1] ?? { name: 'home' }
 

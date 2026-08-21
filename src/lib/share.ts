@@ -21,6 +21,8 @@ export interface IncomingCapture {
   snapshot?: DomSnapshot
   /** Set when this came off the iOS queue, so it can be released after saving. */
   queueId?: string
+  /** Present when the share sheet already asked for the tags. */
+  tags?: { source: string; relevant_to: string[] }
 }
 
 interface PendingShare {
@@ -30,11 +32,14 @@ interface PendingShare {
   mime?: string
   /** A serialized DomSnapshot, when the share came from Safari. */
   snapshot?: string
+  /** Tags chosen in the share sheet, when the extension did the tagging. */
+  tags?: string
 }
 
 interface ShareIntakePlugin {
   getPendingShares(): Promise<{ items: PendingShare[] }>
   clearPendingShares(options: { ids: string[] }): Promise<void>
+  putVocabulary(options: { json: string }): Promise<void>
 }
 
 const ShareIntake = registerPlugin<ShareIntakePlugin>('ShareIntake')
@@ -77,7 +82,13 @@ export async function drainPendingShares(): Promise<IncomingCapture[]> {
       // A share we could not turn into an image stays queued. Clearing it here
       // would delete the only copy of something the user explicitly shared.
       if (!blob) continue
-      incoming.push({ blob, queueId: item.id, ...(snapshot ? { snapshot } : {}) })
+      const tags = parseTags(item.tags)
+      incoming.push({
+        blob,
+        queueId: item.id,
+        ...(snapshot ? { snapshot } : {}),
+        ...(tags ? { tags } : {}),
+      })
     }
 
     // Deliberately not cleared here. JS memory is not durable: iOS kills
@@ -105,6 +116,25 @@ export async function clearQueued(ids: string[]): Promise<void> {
     await ShareIntake.clearPendingShares({ ids: wanted })
   } catch {
     // Left queued rather than lost; the next drain picks it up again.
+  }
+}
+
+/**
+ * Mirror the tag vocabulary into the App Group, so the share sheet can offer
+ * the same pickers the app does. The library lives in IndexedDB, which the
+ * extension is a separate process from and cannot read.
+ */
+export async function publishVocabulary(vocabulary: {
+  sources: string[]
+  relevantTo: string[]
+  lastSource: string
+  lastRelevantTo: string[]
+}): Promise<void> {
+  if (!Capacitor.isNativePlatform() || !Capacitor.isPluginAvailable('ShareIntake')) return
+  try {
+    await ShareIntake.putVocabulary({ json: JSON.stringify(vocabulary) })
+  } catch {
+    // The sheet falls back to empty pickers; typing still works.
   }
 }
 
@@ -140,6 +170,25 @@ async function imageForShare(
     return await coverForSnapshot(snapshot)
   } catch {
     return null
+  }
+}
+
+/**
+ * Tags the share sheet collected. Malformed tags cost the capture nothing: it
+ * simply arrives untagged and the app asks, exactly as it used to.
+ */
+function parseTags(raw: string | undefined): { source: string; relevant_to: string[] } | undefined {
+  if (!raw) return undefined
+  try {
+    const parsed = JSON.parse(raw) as { source?: unknown; relevant_to?: unknown }
+    const source = typeof parsed.source === 'string' ? parsed.source.trim() : ''
+    const relevantTo = Array.isArray(parsed.relevant_to)
+      ? parsed.relevant_to.filter((tag): tag is string => typeof tag === 'string' && tag.trim() !== '')
+      : []
+    if (!source && relevantTo.length === 0) return undefined
+    return { source, relevant_to: relevantTo }
+  } catch {
+    return undefined
   }
 }
 

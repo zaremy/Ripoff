@@ -96,6 +96,41 @@ describe('drainPendingShares', () => {
     expect(results.flat()).toHaveLength(1)
   })
 
+  it('carries tags the share sheet already collected', async () => {
+    getPendingShares.mockResolvedValue({
+      items: [
+        {
+          id: 'shot.png',
+          data: btoa('pixels'),
+          mime: 'image/png',
+          tags: JSON.stringify({ source: 'Clash of Clans', relevant_to: ['Inspo / Onboarding'] }),
+        },
+      ],
+    })
+
+    const [incoming] = await drainPendingShares()
+
+    expect(incoming?.tags).toEqual({
+      source: 'Clash of Clans',
+      relevant_to: ['Inspo / Onboarding'],
+    })
+  })
+
+  // Bad tags must cost the capture nothing: it arrives untagged and the app
+  // asks, exactly as it did before the sheet existed.
+  it('keeps the screenshot when the tags are unusable', async () => {
+    for (const tags of ['not json', '{}', JSON.stringify({ source: '  ', relevant_to: [] })]) {
+      getPendingShares.mockResolvedValue({
+        items: [{ id: 'shot.png', data: btoa('pixels'), mime: 'image/png', tags }],
+      })
+
+      const [incoming] = await drainPendingShares()
+
+      expect(incoming?.blob).toBeTruthy()
+      expect(incoming?.tags).toBeUndefined()
+    }
+  })
+
   it('drains again once the previous drain has finished', async () => {
     queueOneScreenshot()
     await drainPendingShares()

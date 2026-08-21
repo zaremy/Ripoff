@@ -14,8 +14,24 @@ public class ShareIntakePlugin: CAPPlugin, CAPBridgedPlugin {
     public let jsName = "ShareIntake"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "getPendingShares", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "clearPendingShares", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "clearPendingShares", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "putVocabulary", returnType: CAPPluginReturnPromise)
     ]
+
+    /// Mirror the app's tag vocabulary into the App Group so the share sheet
+    /// can offer the same pickers. The library lives in IndexedDB inside the
+    /// webview, which the extension is a separate process from.
+    @objc func putVocabulary(_ call: CAPPluginCall) {
+        guard
+            let destination = InspoShared.vocabularyURL(),
+            let json = call.getString("json")
+        else {
+            call.resolve()
+            return
+        }
+        try? json.data(using: .utf8)?.write(to: destination, options: .atomic)
+        call.resolve()
+    }
 
     @objc func getPendingShares(_ call: CAPPluginCall) {
         guard let directory = InspoShared.queueDirectory() else {
@@ -37,9 +53,18 @@ public class ShareIntakePlugin: CAPPlugin, CAPBridgedPlugin {
             return leftDate < rightDate
         }
 
-        // Markup sidecars are attached to their image rather than listed.
+        // Sidecars are attached to their image rather than listed as shares.
         let snapshots = ordered.filter { $0.pathExtension == InspoShared.snapshotExtension }
-        let images = ordered.filter { $0.pathExtension != InspoShared.snapshotExtension }
+        let images = ordered.filter { !InspoShared.sidecarExtensions.contains($0.pathExtension) }
+
+        /// Tags the share sheet already collected, if it did the tagging.
+        func tags(for base: String) -> String? {
+            let url = directory
+                .appendingPathComponent(base)
+                .appendingPathExtension(InspoShared.tagsExtension)
+            guard let data = try? Data(contentsOf: url) else { return nil }
+            return String(data: data, encoding: .utf8)
+        }
 
         func snapshot(for base: String) -> String? {
             guard
@@ -64,6 +89,7 @@ public class ShareIntakePlugin: CAPPlugin, CAPBridgedPlugin {
                 item["snapshot"] = markup
                 claimed.insert(base)
             }
+            if let chosen = tags(for: base) { item["tags"] = chosen }
             items.append(item)
         }
 
@@ -73,7 +99,9 @@ public class ShareIntakePlugin: CAPPlugin, CAPBridgedPlugin {
             let base = url.deletingPathExtension().lastPathComponent
             guard !claimed.contains(base), let data = try? Data(contentsOf: url) else { continue }
             guard let markup = String(data: data, encoding: .utf8) else { continue }
-            items.append(["id": url.lastPathComponent, "snapshot": markup])
+            var item: [String: String] = ["id": url.lastPathComponent, "snapshot": markup]
+            if let chosen = tags(for: base) { item["tags"] = chosen }
+            items.append(item)
         }
 
         call.resolve(["items": items])
@@ -88,13 +116,17 @@ public class ShareIntakePlugin: CAPPlugin, CAPBridgedPlugin {
         let ids = call.getArray("ids", String.self) ?? []
         for id in ids {
             // Never let a crafted id walk out of the queue folder.
-            guard !id.contains("/"), !id.contains("..") else { continue }
+            // An empty or dot id resolves to the queue folder itself, and
+            // removeItem on a directory is recursive.
+            guard !id.isEmpty, id != ".", !id.contains("/"), !id.contains("..") else { continue }
             let file = directory.appendingPathComponent(id)
             try? FileManager.default.removeItem(at: file)
             // The markup sidecar shares the image's name and goes with it.
-            try? FileManager.default.removeItem(
-                at: file.deletingPathExtension().appendingPathExtension(InspoShared.snapshotExtension)
-            )
+            for sidecar in InspoShared.sidecarExtensions {
+                try? FileManager.default.removeItem(
+                    at: file.deletingPathExtension().appendingPathExtension(sidecar)
+                )
+            }
         }
 
         call.resolve()
