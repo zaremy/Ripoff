@@ -21,6 +21,8 @@ class ShareViewController: UIViewController {
     private var material = SharedMaterial()
     private var vocabulary = Vocabulary.load()
 
+    private let backdrop = UIImageView()
+    private let backdropDim = UIView()
     private let card = UIView()
     private let thumbnail = UIImageView()
     private let caption = UILabel()
@@ -44,6 +46,28 @@ class ShareViewController: UIViewController {
     // MARK: - Interface
 
     private func buildInterface() {
+        // The screenshot itself sits behind the sheet, so you can see what you
+        // are tagging rather than a grey rectangle. Dimmed only once there is
+        // actually an image, or a page-only share would darken twice.
+        backdrop.contentMode = .scaleAspectFill
+        backdrop.clipsToBounds = true
+        backdrop.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(backdrop)
+
+        backdropDim.backgroundColor = UIColor.black.withAlphaComponent(0.3)
+        backdropDim.alpha = 0
+        backdropDim.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(backdropDim)
+
+        for filler in [backdrop, backdropDim] {
+            NSLayoutConstraint.activate([
+                filler.topAnchor.constraint(equalTo: view.topAnchor),
+                filler.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+                filler.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                filler.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            ])
+        }
+
         card.backgroundColor = .systemBackground
         card.layer.cornerRadius = 20
         card.layer.cornerCurve = .continuous
@@ -234,6 +258,8 @@ class ShareViewController: UIViewController {
             self.saveButton.isEnabled = true
             if let data = self.material.imageData, let image = UIImage(data: data) {
                 self.thumbnail.image = image
+                self.backdrop.image = image
+                self.backdropDim.alpha = 1
                 self.caption.text = "Tag it with the product it came from and the idea it might help."
             } else if self.material.snapshot != nil {
                 self.caption.text = "Page markup captured. Its cover is drawn on save."
