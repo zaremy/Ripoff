@@ -1,7 +1,7 @@
 {
   "name": "Teardown",
   "short_name": "Teardown",
-  "description": "A local-first website teardown library.",
+  "description": "A local-first visual reference library: every screenshot carries the product it came from and the idea it might help.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
