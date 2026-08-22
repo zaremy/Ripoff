@@ -1,7 +1,7 @@
 {
-  "name": "Inspo",
-  "short_name": "Inspo",
-  "description": "A local-first visual reference library for product teardowns.",
+  "name": "Teardown",
+  "short_name": "Teardown",
+  "description": "A local-first website teardown library.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

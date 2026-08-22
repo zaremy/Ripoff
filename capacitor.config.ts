@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli'
 
 const config: CapacitorConfig = {
   appId: 'com.zaremy.inspo',
-  appName: 'Inspo',
+  appName: 'Teardown',
   webDir: 'dist',
   ios: {
     contentInset: 'never',
