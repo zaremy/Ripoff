@@ -149,6 +149,10 @@ export function Detail({ capture }: { capture: Capture }) {
 
           <Handoff capture={capture} />
 
+          {/* The delete control keeps `danger-text` as well as `drop`:
+              scripts/mirror-test.mjs selects on `.detail .danger-text`, and it
+              does not run under `npm test`, so removing the class as redundant
+              breaks that harness silently. */}
           {confirmingDelete ? (
             <div className="confirm">
               <span>Delete this reference?</span>
@@ -160,7 +164,7 @@ export function Detail({ capture }: { capture: Capture }) {
               </button>
             </div>
           ) : (
-            <button type="button" className="drop" onClick={() => setConfirmingDelete(true)}>
+            <button type="button" className="drop danger-text" onClick={() => setConfirmingDelete(true)}>
               Delete
             </button>
           )}

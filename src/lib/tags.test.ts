@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   hasMarkup,
+  topOfMind,
   isNewTag,
   matchesQuery,
   relevantToSummaries,
@@ -162,5 +163,43 @@ describe('markup', () => {
     const metaOnly: Capture = { ...capture('Vercel', ['Docs']), snapshot }
     expect(hasMarkup(uriOnly)).toBe(false)
     expect(hasMarkup(metaOnly)).toBe(false)
+  })
+})
+
+describe('top of mind', () => {
+  const recent = ['Four Crowns / Avatars', 'Teardown App / Navigation', 'Baby Tracker / Logging']
+
+  it('keeps the order the store recorded, most recent first', () => {
+    expect(topOfMind(library, recent)).toEqual(recent)
+  })
+
+  it('caps the row so it never crowds the wall', () => {
+    const many = ['Four Crowns / Avatars', 'Four Crowns / AI Art', 'Four Crowns / Dialogue',
+                  'Teardown App / Navigation', 'Baby Tracker / Logging']
+    expect(topOfMind(library, many, 4)).toHaveLength(4)
+  })
+
+  it('drops an idea whose last capture is gone', () => {
+    const gone = topOfMind(library, ['Four Crowns / Avatars', 'Nothing Uses This'])
+    expect(gone).toEqual(['Four Crowns / Avatars'])
+  })
+
+  it('matches an idea regardless of casing or padding', () => {
+    expect(topOfMind(library, ['  four crowns / AVATARS '])).toHaveLength(1)
+  })
+
+  it('shows the spelling the library uses, not the one the recents remember', () => {
+    // recents can hold an older casing than the captures do after a retag
+    expect(topOfMind(library, ['  four crowns / AVATARS '])).toEqual(['Four Crowns / Avatars'])
+  })
+
+  it('does not repeat an idea the store listed twice', () => {
+    const dupes = ['Four Crowns / Avatars', 'four crowns / avatars', 'Baby Tracker / Logging']
+    expect(topOfMind(library, dupes)).toEqual(['Four Crowns / Avatars', 'Baby Tracker / Logging'])
+  })
+
+  it('is empty for an empty library, so the row never renders on first run', () => {
+    expect(topOfMind([], recent)).toEqual([])
+    expect(topOfMind(library, [])).toEqual([])
   })
 })
