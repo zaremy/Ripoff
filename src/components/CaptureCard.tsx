@@ -1,4 +1,4 @@
-import { useImageUrl } from '../hooks/useImageUrl'
+import { Shot } from './Shot'
 import { displayAspect } from '../lib/layout'
 import type { Capture } from '../lib/types'
 
@@ -11,10 +11,10 @@ interface CaptureCardProps {
 
 /**
  * The screenshot is the artifact; the two lines under it are the whole point
- * of the product. FROM on top, FOR underneath, both tappable.
+ * of the product. FROM is weight, FOR is the brand mark - and FOR is the one
+ * you came for, so it is the one that carries the highlight.
  */
 export function CaptureCard({ capture, onOpen, onSource, onRelevantTo }: CaptureCardProps) {
-  const url = useImageUrl(capture.thumb_uri)
   const shown = displayAspect(capture)
 
   return (
@@ -22,11 +22,10 @@ export function CaptureCard({ capture, onOpen, onSource, onRelevantTo }: Capture
       <button
         type="button"
         className="card-image"
-        style={{ aspectRatio: String(shown) }}
         onClick={() => onOpen(capture)}
         aria-label={`Open capture from ${capture.source}`}
       >
-        {url ? <img src={url} alt="" loading="lazy" decoding="async" /> : <span className="card-placeholder" />}
+        <Shot capture={capture} size="card" style={{ aspectRatio: String(shown) }} />
       </button>
 
       <figcaption className="card-meta">

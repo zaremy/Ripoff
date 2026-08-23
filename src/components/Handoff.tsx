@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { isNative } from '../lib/blobStore'
 import { loadSnapshotHtml } from '../lib/db'
 import { claudeCodeHandoff, copyText, downloadJson, figmaFileName } from '../lib/handoff'
+import { hasMarkup } from '../lib/tags'
 import type { Capture } from '../lib/types'
 
 /**
@@ -15,7 +16,7 @@ export function Handoff({ capture }: { capture: Capture }) {
   const [status, setStatus] = useState<string | null>(null)
   const [busy, setBusy] = useState<'claude' | 'figma' | null>(null)
 
-  if (!capture.snapshot_uri || !capture.snapshot) return null
+  if (!hasMarkup(capture)) return null
 
   async function forClaudeCode() {
     setBusy('claude')

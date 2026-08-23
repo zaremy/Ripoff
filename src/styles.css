@@ -21,18 +21,39 @@
 :root {
   color-scheme: light dark;
 
-  --bg: #f4f4f6;
+  /*
+   * Brand. Yellow and near-black always travel together: #ffd400 is 1.2:1 on
+   * paper and 13.18:1 on the substrate, so it is never text on a light
+   * ground. It either sits on --sub, or it is a fill with --sub content on
+   * it. In dark mode --sub equals the page, so the same markup that draws a
+   * black chip here draws plain yellow text there - one design, two modes.
+   */
+  --hi: #ffd400;
+  --sub: #121110;
+  /* The code layer revealed under a peel. Fixed in both modes: the substrate
+     is always black, because that is what the app icon shows. */
+  --substrate: #0b0b0c;
+
+  --bg: #f4f1ea;
   --surface: #ffffff;
-  --ink: #17171c;
-  --ink-soft: #6f6f7d;
-  --ink-faint: #9a9aa8;
-  --line: #e4e4ea;
-  --accent: #494ec2;
-  --accent-soft: #ecedfa;
-  --danger: #b3261e;
-  --shadow: 0 1px 2px rgba(20, 20, 30, 0.06), 0 6px 16px rgba(20, 20, 30, 0.05);
+  --well: #eae5da;
+  --ink: #17150f;
+  --ink-soft: #5f594d;
+  --ink-faint: #6f6857;
+  --line: #dbd4c5;
+  /* An emphasis stroke. --sub cannot do this job: in dark mode it equals the
+     page, so a border drawn with it disappears and controls lose their shape. */
+  --edge: #121110;
+  /* Interactive ink. The brand colour is --hi and is applied deliberately. */
+  --accent: #121110;
+  --accent-soft: #eae5da;
+  --danger: #8f2018;
+  --shadow: 0 1px 2px rgba(40, 34, 22, 0.05), 0 6px 16px rgba(40, 34, 22, 0.06);
   /* The mat a previewed screenshot sits on, so it never bleeds into white. */
-  --mat: #e7e7ec;
+  --mat: #e4ded0;
+  /* The curling sheet of a peel, lit along the fold. */
+  --flap-1: #ffffff;
+  --flap-2: #c3bdad;
 
   --radius-card: 10px;
   --radius-panel: 14px;
@@ -40,21 +61,48 @@
 
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /*
+   * Type. Six roles, one job each.
+   *
+   * Mono caps is for LABELS, ACTIONS and BADGES only. It never touches a
+   * name, a title, or a sentence - when it is everywhere it marks nothing,
+   * and it is the slowest thing on the screen to read. Tracking is bound to
+   * the role, not chosen per element.
+   */
+  --mono: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --t-hero: 34px;
+  --t-display: 28px;
+  --t-value: 17px;
+  --t-body: 15px;
+  --t-meta: 13.5px;
+  --t-action: 13px;
+  --t-label: 12px;
+  --track-label: 0.14em;
+  --track-badge: 0.1em;
+  --track-action: 0.08em;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0d0d0f;
-    --surface: #161619;
-    --ink: #ededf0;
-    --ink-soft: #8b8b98;
-    --ink-faint: #63636f;
-    --line: #242429;
-    --accent: #a3a7f5;
-    --accent-soft: #1e1f33;
-    --danger: #ef8579;
+    --bg: #121110;
+    --surface: #1b1917;
+    --well: #232019;
+    --ink: #f2ede2;
+    --ink-soft: #948d7e;
+    --ink-faint: #8a8377;
+    --line: #2b2723;
+    /* Equal to the page, so every highlight chip vanishes and its yellow
+       reads as plain text. Same markup, no fork. */
+    --sub: #121110;
+    --edge: #ffd400;
+    --accent: #f2ede2;
+    --accent-soft: #232019;
+    --danger: #c2564a;
     --shadow: none;
     --mat: #08080a;
+    --flap-1: #6b6456;
+    --flap-2: #17150f;
   }
 }
 
@@ -796,4 +844,530 @@ img {
   color: var(--ink-soft);
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+/* ==========================================================================
+   The brand system
+   ========================================================================== */
+
+/*
+ * The highlight. Yellow's mandatory companion: in light mode this paints a
+ * black chip so the yellow keeps 13.18:1 on a pale page; in dark mode --sub
+ * equals the page, the chip vanishes, and the same element reads as plain
+ * yellow text. Identical markup either way.
+ */
+.hl {
+  background: var(--sub);
+  color: var(--hi);
+  padding: 1px 6px 2px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+button.hl:active {
+  opacity: 0.7;
+}
+
+/* A label is mono caps. Nothing else is. */
+.field-label {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: var(--t-label);
+  font-weight: 600;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+:focus-visible {
+  outline-color: var(--edge);
+}
+
+/* ---------- the peel ----------
+ *
+ * Present only when the page behind the screenshot came with it, so the wall
+ * shows at a glance which captures can be rebuilt rather than only admired.
+ * Three layers: the image gives up its top-right triangle, the substrate is
+ * clipped to exactly that triangle, and the flap folds back over the fold.
+ *
+ * Clipping the substrate matters. As a full square it shows through the
+ * flap's rounded tip and the corner reads as a bite out of the card.
+ */
+
+.shot {
+  position: relative;
+  overflow: hidden;
+  background: var(--substrate);
+  --curl: 34px;
+}
+
+.shot-thumb,
+.shot-card {
+  --curl: 17px;
+}
+
+.shot-hero {
+  --curl: 62px;
+  border-radius: var(--radius-card);
+}
+
+.shot-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Screenshots identify themselves at the top, so a crop takes the bottom. */
+  object-position: top center;
+}
+
+.shot-placeholder {
+  min-height: 80px;
+  background: var(--line);
+}
+
+.shot-dom .shot-image {
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--curl)) 0,
+    100% var(--curl),
+    100% 100%,
+    0 100%
+  );
+}
+
+.shot-code {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: var(--curl);
+  height: var(--curl);
+  background: var(--substrate);
+  overflow: hidden;
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+
+/* The crease: darkest along the fold, fading up-right into the code. */
+.shot-code::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(45deg, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0) 52%);
+}
+
+.shot-code b {
+  position: absolute;
+  right: calc(var(--curl) * 0.09);
+  top: calc(var(--curl) * 0.055);
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: calc(var(--curl) * 0.27);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--hi);
+  text-shadow: 0 0 calc(var(--curl) * 0.13) rgba(255, 212, 0, 0.8);
+}
+
+.shot-bar {
+  position: absolute;
+  right: calc(var(--curl) * 0.09);
+  /* Pure proportional scaling puts these under a pixel on a thumbnail. */
+  height: clamp(1.5px, calc(var(--curl) * 0.05), 3.5px);
+  background: var(--hi);
+  box-shadow: 0 0 calc(var(--curl) * 0.11) rgba(255, 212, 0, 0.65);
+}
+
+.shot-bar-1 {
+  top: calc(var(--curl) * 0.47);
+  width: calc(var(--curl) * 0.4);
+}
+
+.shot-bar-2 {
+  top: calc(var(--curl) * 0.62);
+  width: calc(var(--curl) * 0.24);
+}
+
+.shot-curl {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: var(--curl);
+  height: var(--curl);
+  clip-path: polygon(0 0, 100% 100%, 0 100%);
+  /* Rounding the lifted tip is what separates folded paper from a cut corner. */
+  border-bottom-left-radius: calc(var(--curl) * 0.26);
+  background: linear-gradient(225deg, var(--flap-1) 0%, var(--flap-1) 38%, var(--flap-2) 100%);
+  filter: drop-shadow(-1.5px 1.5px 2.5px rgba(0, 0, 0, 0.58));
+}
+
+/* Under about 30px the glyph is illegible, so the two bars carry it alone. */
+.shot-thumb .shot-code b,
+.shot-card .shot-code b {
+  display: none;
+}
+
+.shot-thumb .shot-bar-1,
+.shot-card .shot-bar-1 {
+  top: calc(var(--curl) * 0.33);
+  width: calc(var(--curl) * 0.42);
+  right: calc(var(--curl) * 0.08);
+}
+
+.shot-thumb .shot-bar-2,
+.shot-card .shot-bar-2 {
+  top: calc(var(--curl) * 0.58);
+  width: calc(var(--curl) * 0.24);
+  right: calc(var(--curl) * 0.08);
+}
+
+.shot-thumb .shot-code::after,
+.shot-card .shot-code::after {
+  background: linear-gradient(45deg, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0) 46%);
+}
+
+/* A dark sheet folding onto a black substrate is correct and invisible, so
+   at thumbnail size the flap sits mostly in its lit tone. */
+.shot-thumb .shot-curl,
+.shot-card .shot-curl {
+  border-bottom-left-radius: calc(var(--curl) * 0.18);
+  background: linear-gradient(225deg, var(--flap-1) 0%, var(--flap-1) 58%, var(--flap-2) 100%);
+  filter: drop-shadow(-1px 1px 1.5px rgba(0, 0, 0, 0.65));
+}
+
+/* ---------- detail ---------- */
+
+.position {
+  flex: 1;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: var(--t-label);
+  letter-spacing: var(--track-badge);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-soft);
+}
+
+.detail .ghost.hl,
+.detail .primary {
+  font-family: var(--mono);
+  font-size: var(--t-label);
+  font-weight: 700;
+  letter-spacing: var(--track-action);
+  text-transform: uppercase;
+  padding: 6px 10px;
+  border-radius: 0;
+}
+
+/* Save is the one place a large yellow fill carries dark content. */
+.detail .primary {
+  background: var(--hi);
+  color: var(--sub);
+}
+
+.source-badge {
+  display: inline-block;
+  margin: 12px 0 0;
+  font-family: var(--mono);
+  font-size: var(--t-label);
+  font-weight: 700;
+  letter-spacing: var(--track-badge);
+  text-transform: uppercase;
+  padding: 5px 8px;
+}
+
+.subject {
+  width: 100%;
+  margin-top: 4px;
+}
+
+/* The subject of the screen is the biggest word on it. Colour reinforces
+   that hierarchy; it never creates it. */
+.subject-value {
+  margin: 5px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: var(--t-display);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.12;
+}
+
+.subject-value button {
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+}
+
+.facts {
+  width: 100%;
+  margin: 4px 0 0;
+}
+
+.fact {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.fact:first-child {
+  border-top: 1px solid var(--line);
+}
+
+.fact dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.fact-value {
+  font-size: var(--t-value);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-align: right;
+}
+
+.fact-meta {
+  font-size: var(--t-meta);
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Destructive does not share the button vocabulary. */
+.drop {
+  align-self: center;
+  margin-top: 6px;
+  font-size: var(--t-meta);
+  color: var(--danger);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---------- retuned to the scale ---------- */
+
+.search {
+  font-size: 16px; /* anything smaller makes iOS zoom on focus */
+  border-radius: 8px;
+  background: var(--well);
+}
+
+.add {
+  border-radius: 8px;
+  background: var(--hi);
+  border-color: var(--hi);
+  color: var(--sub);
+  font-weight: 800;
+}
+
+.add:active {
+  background: var(--hi);
+  opacity: 0.8;
+}
+
+/*
+ * On the wall FOR is NOT chipped. styles.css opens by saying the screenshots
+ * have to be the only loud thing on screen, and a black-and-yellow block on
+ * every card - two on some, wrapping to two lines - breaks that rule outright.
+ * The mockups never showed a dense wall, so this only appeared on render.
+ *
+ * FROM and FOR are separated by type instead: FROM carries weight, FOR sits
+ * one step down in the soft ink. The brand still reaches Home through the +
+ * key and the peel, and FOR gets its highlight on Detail, where it is the
+ * subject rather than one of forty.
+ */
+.card-meta .tag-relevant,
+.detail-meta .tag-relevant {
+  font-size: var(--t-meta);
+  color: var(--ink-soft);
+}
+
+.card-meta .tag-source,
+.detail-meta .tag-source {
+  font-weight: 600;
+}
+
+/*
+ * No separator. At this width a long FOR tag takes the whole row, so the tags
+ * stack rather than run inline and a trailing comma is left orphaned at the
+ * end of a wrapped line. The stacking already separates them.
+ */
+.card-relevant button:not(:last-child)::after,
+.detail-meta .card-relevant button:not(:last-child)::after {
+  content: none;
+}
+
+.card-relevant {
+  gap: 4px;
+}
+
+.card-meta .tag-source,
+.detail-meta .tag-source {
+  font-size: var(--t-meta);
+}
+
+.empty-title {
+  font-size: var(--t-hero);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  text-transform: uppercase;
+  color: var(--ink);
+  margin: 0 0 14px;
+}
+
+.empty-title .hl {
+  padding: 1px 8px 3px;
+}
+
+.empty {
+  text-align: left;
+  padding: 40px 4px;
+}
+
+.empty-hint {
+  margin: 0;
+  max-width: none;
+  font-size: var(--t-body);
+  color: var(--ink-soft);
+}
+
+.empty-steps {
+  max-width: none;
+  margin-top: 22px;
+  font-size: var(--t-body);
+}
+
+.empty-steps li::before {
+  background: var(--sub);
+  color: var(--hi);
+  border-radius: 0;
+  font-family: var(--mono);
+  font-size: var(--t-label);
+  font-weight: 700;
+  width: 22px;
+  height: 18px;
+}
+
+.picker-head h2 {
+  font-family: var(--mono);
+  font-size: var(--t-label);
+  font-weight: 600;
+  letter-spacing: var(--track-label);
+  color: var(--ink-faint);
+}
+
+.picker-head p {
+  font-size: var(--t-meta);
+}
+
+/* Tags are names, so they are sans and keep their own casing. */
+.picker .tag,
+.tag-create {
+  font-size: var(--t-meta);
+  border-radius: 6px;
+}
+
+.picker .tag-relevant {
+  background: var(--well);
+  color: var(--ink-soft);
+}
+
+.picker .tag-relevant.selected {
+  background: var(--hi);
+  color: var(--sub);
+  font-weight: 700;
+}
+
+.picker .tag-source.selected {
+  background: var(--sub);
+  color: var(--bg);
+}
+
+.tag-create {
+  background: var(--hi);
+  color: var(--sub);
+}
+
+.handoff {
+  border-radius: 0;
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  background: none;
+  padding: 16px 0 0;
+}
+
+.handoff-head h2 {
+  font-family: var(--mono);
+  font-size: var(--t-label);
+  font-weight: 600;
+  letter-spacing: var(--track-label);
+  color: var(--ink-faint);
+}
+
+.handoff-head p {
+  font-size: var(--t-meta);
+  color: var(--ink-soft);
+}
+
+/* The two exports are the point of keeping the markup, so they lead. The
+   yellow rule keeps their shape in dark mode, where the fill equals the page. */
+.handoff-actions .bordered {
+  flex: 1;
+  justify-content: center;
+  display: inline-flex;
+  align-items: center;
+  background: var(--sub);
+  border-color: var(--hi);
+  color: var(--hi);
+  font-family: var(--mono);
+  font-size: var(--t-action);
+  font-weight: 700;
+  letter-spacing: var(--track-action);
+  text-transform: uppercase;
+  border-radius: 0;
+  padding: 11px 12px;
+}
+
+.sheet-title {
+  font-family: var(--mono);
+  font-size: var(--t-label);
+  letter-spacing: var(--track-badge);
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+/* Carries a filename and a hostname, which are names - and by the type rules
+   mono caps never touches a name. It also would not survive the round trip:
+   text-transform changes what innerText() returns, so uppercasing here breaks
+   the acceptance assertion that the page came along. */
+.sheet-note {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: var(--t-label);
+  font-weight: 700;
+  letter-spacing: var(--track-badge);
+  background: var(--sub);
+  color: var(--hi);
+  padding: 5px 8px;
+}
+
+.sheet-head .primary {
+  background: var(--hi);
+  color: var(--sub);
+  font-family: var(--mono);
+  font-size: var(--t-action);
+  font-weight: 800;
+  letter-spacing: var(--track-action);
+  text-transform: uppercase;
+  border-radius: 0;
+}
+
+.mirror {
+  font-size: var(--t-meta);
+}
+
+.mirror-action {
+  font-size: var(--t-meta);
 }

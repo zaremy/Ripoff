@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  hasMarkup,
   isNewTag,
   matchesQuery,
   relevantToSummaries,
@@ -134,5 +135,32 @@ describe('tag hygiene', () => {
     expect(isNewTag(['Pixel Wild'], 'pixel wild')).toBe(false)
     expect(isNewTag(['Pixel Wild'], 'Civ V')).toBe(true)
     expect(isNewTag(['Pixel Wild'], '   ')).toBe(false)
+  })
+})
+
+describe('markup', () => {
+  const snapshot = {
+    url: 'https://vercel.com',
+    title: 'Vercel',
+    viewport: { width: 390, height: 844 },
+    bytes: 4200,
+    blocked_stylesheets: [],
+  }
+  const withPage: Capture = {
+    ...capture('Vercel', ['Docs']),
+    snapshot_uri: 'idb:snap',
+    snapshot,
+  }
+
+  it('is true only when the page came with the screenshot', () => {
+    expect(hasMarkup(withPage)).toBe(true)
+    expect(hasMarkup(capture('Vercel', ['Docs']))).toBe(false)
+  })
+
+  it('is false for a half-written record, either way round', () => {
+    const uriOnly: Capture = { ...capture('Vercel', ['Docs']), snapshot_uri: 'idb:snap' }
+    const metaOnly: Capture = { ...capture('Vercel', ['Docs']), snapshot }
+    expect(hasMarkup(uriOnly)).toBe(false)
+    expect(hasMarkup(metaOnly)).toBe(false)
   })
 })

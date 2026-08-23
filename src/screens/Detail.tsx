@@ -1,17 +1,20 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Handoff } from '../components/Handoff'
+import { Shot } from '../components/Shot'
 import { TagPicker } from '../components/TagPicker'
-import { useImageUrl } from '../hooks/useImageUrl'
+import { hasMarkup } from '../lib/tags'
 import type { Capture } from '../lib/types'
 import { useStore } from '../state/store'
 
 /**
- * The screenshot, fullscreen, plus the four controls the PRD allows:
- * Source, Relevant To, edit tags, delete. No notes, no metadata panel.
+ * One asset.
+ *
+ * The subject of this screen is what you are building with it, so that is the
+ * biggest thing on it. Where it came from is provenance and sits a step down;
+ * the header carries position only, so the name is never said twice.
  */
 export function Detail({ capture }: { capture: Capture }) {
-  const { defaults, knownSources, knownRelevantTo, push, pop, retag, remove } = useStore()
-  const url = useImageUrl(capture.local_image_uri)
+  const { captures, defaults, knownSources, knownRelevantTo, push, pop, retag, remove } = useStore()
 
   const [editing, setEditing] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -20,6 +23,16 @@ export function Detail({ capture }: { capture: Capture }) {
 
   const chosenSource = source[0] ?? ''
   const canSave = chosenSource.length > 0 && relevantTo.length > 0
+  const marked = hasMarkup(capture)
+
+  // Where this sits in its own target's haul - the header's whole job.
+  const position = useMemo(() => {
+    const siblings = captures.filter(
+      (c) => c.source.trim().toLowerCase() === capture.source.trim().toLowerCase(),
+    )
+    const index = siblings.findIndex((c) => c.id === capture.id)
+    return { index: index < 0 ? 0 : index + 1, total: siblings.length }
+  }, [captures, capture.id, capture.source])
 
   function startEditing() {
     setSource([capture.source])
@@ -44,21 +57,26 @@ export function Detail({ capture }: { capture: Capture }) {
         <button type="button" className="back" onClick={pop} aria-label="Back">
           &larr;
         </button>
-        <span className="sheet-title">{capture.source}</span>
+        <span className="position">
+          {position.index} / {position.total}
+        </span>
         {editing ? (
           <button type="button" className="primary" onClick={() => void commit()} disabled={!canSave}>
             Done
           </button>
         ) : (
-          <button type="button" className="ghost" onClick={startEditing}>
+          <button type="button" className="ghost hl" onClick={startEditing}>
             Edit tags
           </button>
         )}
       </div>
 
-      <div className="detail-image">
-        {url ? <img src={url} alt={`Reference from ${capture.source}`} /> : <span className="card-placeholder" />}
-      </div>
+      <Shot
+        capture={capture}
+        full
+        size="hero"
+        alt={`Reference from ${capture.source}`}
+      />
 
       {editing ? (
         <div className="detail-edit">
@@ -88,25 +106,46 @@ export function Detail({ capture }: { capture: Capture }) {
         </div>
       ) : (
         <div className="detail-meta">
-          <button
-            type="button"
-            className="tag tag-source"
-            onClick={() => push({ name: 'tag', filter: { kind: 'source', value: capture.source } })}
-          >
-            {capture.source}
-          </button>
-          <div className="card-relevant">
-            {capture.relevant_to.map((tag) => (
-              <button
-                type="button"
-                className="tag tag-relevant"
-                key={tag}
-                onClick={() => push({ name: 'tag', filter: { kind: 'relevant_to', value: tag } })}
-              >
-                {tag}
-              </button>
-            ))}
+          {marked && capture.snapshot && (
+            <p className="source-badge hl">
+              &#9700; Source &middot; {kb(capture.snapshot.bytes)}
+            </p>
+          )}
+
+          <div className="subject">
+            <p className="field-label">Building</p>
+            <p className="subject-value">
+              {capture.relevant_to.map((tag) => (
+                <button
+                  type="button"
+                  className="hl"
+                  key={tag}
+                  onClick={() => push({ name: 'tag', filter: { kind: 'relevant_to', value: tag } })}
+                >
+                  {tag}
+                </button>
+              ))}
+            </p>
           </div>
+
+          <dl className="facts">
+            <div className="fact">
+              <dt className="field-label">Lifted from</dt>
+              <dd>
+                <button
+                  type="button"
+                  className="fact-value"
+                  onClick={() => push({ name: 'tag', filter: { kind: 'source', value: capture.source } })}
+                >
+                  {capture.source}
+                </button>
+              </dd>
+            </div>
+            <div className="fact">
+              <dt className="field-label">Taken</dt>
+              <dd className="fact-meta">{taken(capture.created_at)}</dd>
+            </div>
+          </dl>
 
           <Handoff capture={capture} />
 
@@ -121,7 +160,7 @@ export function Detail({ capture }: { capture: Capture }) {
               </button>
             </div>
           ) : (
-            <button type="button" className="ghost danger-text" onClick={() => setConfirmingDelete(true)}>
+            <button type="button" className="drop" onClick={() => setConfirmingDelete(true)}>
               Delete
             </button>
           )}
@@ -129,4 +168,18 @@ export function Detail({ capture }: { capture: Capture }) {
       )}
     </div>
   )
+}
+
+function kb(bytes: number): string {
+  return bytes >= 1024 * 1024
+    ? `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+    : `${Math.max(1, Math.round(bytes / 1024))} KB`
+}
+
+function taken(at: number): string {
+  return new Date(at).toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
 }

@@ -6,7 +6,7 @@
  * Four Crowns reference.
  */
 
-import type { Capture } from './types'
+import type { Capture, SnapshotMeta } from './types'
 
 /** Trim and collapse whitespace, but preserve the user's own casing. */
 export function normalizeTag(raw: string): string {
@@ -63,6 +63,17 @@ export function selectCaptures(
   query: string,
 ): Capture[] {
   return captures.filter((c) => matchesFilter(c, filter) && matchesQuery(c, query))
+}
+
+/**
+ * True when the page behind the screenshot came with it. Only these can be
+ * handed to Figma or Claude Code, so it is the one fact worth surfacing on
+ * the wall rather than only on the detail screen.
+ */
+export function hasMarkup(
+  capture: Capture,
+): capture is Capture & { snapshot_uri: string; snapshot: SnapshotMeta } {
+  return Boolean(capture.snapshot_uri && capture.snapshot)
 }
 
 export interface TagSummary {
