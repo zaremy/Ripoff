@@ -1,0 +1,12 @@
+node_modules
+dist
+.DS_Store
+*.log
+.vite
+
+# Apple signing material. Kept outside the repo on purpose; this is the guard
+# in case a copy ever lands inside it.
+secrets/
+*.p8
+*.p12
+*.mobileprovision
