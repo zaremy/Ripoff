@@ -318,6 +318,54 @@ img {
   font-size: 14px;
 }
 
+/* ---------- top of mind ---------- */
+
+/*
+ * A shortcut row, not a filter bar. It sits between the search field and the
+ * wall and is the only thing on Home allowed to use the brand highlight -
+ * these are the ideas you are building, which is what the product is for.
+ *
+ * Chips, not text. There is no hover on a phone, so anything tappable has to
+ * look tappable standing still.
+ */
+.tom {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 0 14px;
+  padding-bottom: 2px;
+  /* bleed to the screen edges so a scrolled row does not look clipped */
+  margin-inline: -12px;
+  padding-inline: 12px;
+}
+
+.tom::-webkit-scrollbar {
+  display: none;
+}
+
+.tom-chip {
+  flex: none;
+  max-width: min(62vw, 15rem);
+  /* 62vw alone is ~890px in the browser build, which has no width
+     breakpoints. The cap keeps a chip a chip at any window size. */
+  padding: 6px 11px;
+  border-radius: var(--radius-pill);
+  background: var(--sub);
+  color: var(--hi);
+  font-size: var(--t-meta);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: opacity 120ms ease;
+}
+
+.tom-chip:active {
+  opacity: 0.65;
+}
+
 /* ---------- the wall ---------- */
 
 .masonry {

@@ -76,6 +76,42 @@ export function hasMarkup(
   return Boolean(capture.snapshot_uri && capture.snapshot)
 }
 
+/**
+ * The ideas you are building right now, for the row above the wall.
+ *
+ * There is no pinning UI and there should not be one: the store already
+ * records which FOR tags you reached for most recently, and that is a better
+ * account of what you are working on than anything you would remember to
+ * curate. An idea whose last capture was deleted or retagged drops out on its
+ * own.
+ */
+export function topOfMind(captures: Capture[], recent: string[], limit = 4): string[] {
+  // Keyed by the folded form, valued by the spelling a capture actually
+  // carries. The recents list can hold an older casing than the library does
+  // after a retag, and a chip that says something no capture says is a lie
+  // even when the board it opens is correct.
+  const live = new Map<string, string>()
+  for (const capture of captures) {
+    for (const tag of capture.relevant_to) {
+      const key = normalizeTag(tag).toLowerCase()
+      if (!live.has(key)) live.set(key, normalizeTag(tag))
+    }
+  }
+
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (const tag of recent) {
+    const key = normalizeTag(tag).toLowerCase()
+    if (!key || seen.has(key)) continue
+    const canonical = live.get(key)
+    if (!canonical) continue
+    seen.add(key)
+    out.push(canonical)
+    if (out.length === limit) break
+  }
+  return out
+}
+
 export interface TagSummary {
   value: string
   count: number
