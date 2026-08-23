@@ -160,7 +160,7 @@ export function Detail({ capture }: { capture: Capture }) {
               </button>
             </div>
           ) : (
-            <button type="button" className="drop" onClick={() => setConfirmingDelete(true)}>
+            <button type="button" className="drop danger-text" onClick={() => setConfirmingDelete(true)}>
               Delete
             </button>
           )}
