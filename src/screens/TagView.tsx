@@ -24,7 +24,10 @@ export function TagView({ filter }: { filter: TagFilter }) {
     () => selectCaptures(captures, filter, query),
     [captures, filter, query],
   )
-  const summary = useMemo(() => summaryFor(captures, filter), [captures, filter])
+  const summary = useMemo(
+    () => summaryFor(captures, filter, query),
+    [captures, filter, query],
+  )
 
   const subtitle =
     filter.kind === 'relevant_to'
@@ -47,7 +50,15 @@ export function TagView({ filter }: { filter: TagFilter }) {
       </div>
 
       {visible.length === 0 ? (
-        <p className="empty">Nothing here yet.</p>
+        <p className="empty">
+          {query.trim() ? (
+            <>
+              Nothing on this board matches <strong>{query}</strong>.
+            </>
+          ) : (
+            'Nothing here yet.'
+          )}
+        </p>
       ) : (
         <Masonry
           items={visible}

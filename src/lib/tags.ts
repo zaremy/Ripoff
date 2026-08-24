@@ -148,9 +148,20 @@ export function relevantToSummaries(captures: Capture[]): TagSummary[] {
   return summarize(captures, (c) => c.relevant_to)
 }
 
-export function summaryFor(captures: Capture[], filter: TagFilter): TagSummary {
-  const matching = captures.filter((c) => matchesFilter(c, filter))
-  const sources = new Set(matching.map((c) => c.source.toLowerCase()))
+export function summaryFor(
+  captures: Capture[],
+  filter: TagFilter,
+  query = '',
+): TagSummary {
+  // Counts the same set the board renders. It has to go through
+  // selectCaptures rather than re-implementing the predicate: a header that
+  // filters differently from the rows is a header that lies, and it lies
+  // silently.
+  const matching = selectCaptures(captures, filter, query)
+  // normalizeTag, not a bare toLowerCase - "Pixel  Wild" and "Pixel Wild" are
+  // one product everywhere else in this file, and counting them as two makes
+  // the product tally disagree with the boards it links to.
+  const sources = new Set(matching.map((c) => normalizeTag(c.source).toLowerCase()))
   return { value: filter.value, count: matching.length, sourceCount: sources.size }
 }
 

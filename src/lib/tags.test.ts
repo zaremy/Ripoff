@@ -108,6 +108,26 @@ describe('board headers', () => {
     expect(summary.sourceCount).toBe(2)
   })
 
+  it('counts the searched set, not the whole board', () => {
+    // The header used to tally the unfiltered board while the rows below it
+    // were filtered, so it claimed three references above two cards.
+    const filter = { kind: 'relevant_to', value: 'Four Crowns / Avatars' } as const
+    const summary = summaryFor(library, filter, 'pixel')
+    expect(summary.count).toBe(selectCaptures(library, filter, 'pixel').length)
+    expect(summary.count).toBe(2)
+    expect(summary.sourceCount).toBe(1)
+  })
+
+  it('treats a whitespace variant of a product as one product', () => {
+    const spaced = [
+      capture('Pixel  Wild', ['Four Crowns / Avatars']),
+      capture('Pixel Wild', ['Four Crowns / Avatars']),
+    ]
+    const summary = summaryFor(spaced, { kind: 'relevant_to', value: 'Four Crowns / Avatars' })
+    expect(summary.count).toBe(2)
+    expect(summary.sourceCount).toBe(1)
+  })
+
   it('lists Sources and Relevant To tags most-collected first', () => {
     expect(sourceSummaries(library)[0]?.value).toBe('Pixel Wild')
     expect(relevantToSummaries(library)[0]?.value).toBe('Four Crowns / Avatars')
