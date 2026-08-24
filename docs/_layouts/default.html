@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% if page.title %}{{ page.title }} &middot; {% endif %}{{ site.title }}</title>
+<meta name="description" content="{{ page.description | default: site.description }}">
+<link rel="icon" href="{{ '/icon-192.png' | relative_url }}">
+<link rel="apple-touch-icon" href="{{ '/apple-touch-icon.png' | relative_url }}">
+<style>
+  :root {
+    --hi: #ffd400; --sub: #121110;
+    --bg: #f4f1ea; --surface: #ffffff;
+    --ink: #17150f; --ink-soft: #5f594d; --line: #dbd4c5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121110; --surface: #171614; --sub: #121110;
+      --ink: #f2efe6; --ink-soft: #a49d8e; --line: #2c2a26;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 44px 20px 96px;
+    background: var(--bg); color: var(--ink);
+    font: 16px/1.62 -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  main { max-width: 39rem; margin: 0 auto; }
+  .hl {
+    background: var(--sub); color: var(--hi);
+    padding: 1px 7px 3px; border-radius: 3px;
+    -webkit-box-decoration-break: clone; box-decoration-break: clone;
+  }
+  h1 { font-size: 34px; line-height: 1.15; letter-spacing: -0.02em; margin: 0 0 6px; }
+  h2 {
+    font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-soft); margin: 40px 0 10px; font-weight: 600;
+  }
+  .stamp { color: var(--ink-soft); font-size: 13.5px; margin: 0 0 36px; }
+  ul { padding-left: 1.15rem; }
+  li { margin: 6px 0; }
+  blockquote {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 12px; padding: 18px 20px; margin: 0 0 8px;
+  }
+  blockquote p { margin: 0; font-size: 17px; }
+  code {
+    font: 13.5px ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 4px; padding: 1px 5px;
+  }
+  nav { margin-bottom: 34px; font-size: 13.5px; letter-spacing: 0.02em; }
+  nav a { margin-right: 16px; }
+  footer {
+    margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line);
+    color: var(--ink-soft); font-size: 13.5px;
+  }
+  a { color: inherit; text-decoration-color: var(--ink-soft); text-underline-offset: 3px; }
+</style>
+</head>
+<body>
+<main>
+  <nav>
+    <a href="{{ '/' | relative_url }}">Teardown</a>
+    <a href="{{ '/privacy.html' | relative_url }}">Privacy</a>
+    <a href="https://github.com/{{ site.repository }}">Source</a>
+  </nav>
+
+  {{ content }}
+
+  <footer>
+    {{ site.tagline }} &middot;
+    <a href="https://github.com/{{ site.repository }}">github.com/{{ site.repository }}</a>
+  </footer>
+</main>
+</body>
+</html>

@@ -14,6 +14,10 @@ const icons = [
   ['public/icon-512.png', 512],
   ['public/apple-touch-icon.png', 180],
   ['ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png', 1024],
+  // GitHub Pages serves docs/, which cannot reach public/. Generating into
+  // both means the site favicon cannot drift away from the app icon.
+  ['docs/icon-192.png', 192],
+  ['docs/apple-touch-icon.png', 180],
 ]
 
 const browser = await chromium.launch(
