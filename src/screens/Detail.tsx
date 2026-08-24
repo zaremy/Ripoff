@@ -130,7 +130,7 @@ export function Detail({ capture }: { capture: Capture }) {
 
           <dl className="facts">
             <div className="fact">
-              <dt className="field-label">Lifted from</dt>
+              <dt className="field-label">Found in</dt>
               <dd>
                 <button
                   type="button"
