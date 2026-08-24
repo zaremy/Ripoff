@@ -1,0 +1,16 @@
+title: Teardown
+tagline: A local-first visual reference library
+description: >-
+  Teardown keeps screenshots of other people's products, each one tagged with
+  the product it came from and the idea it might help.
+url: https://zaremy.github.io
+baseurl: /Ripoff
+repository: zaremy/Ripoff
+
+# No theme key on purpose. The layout in _layouts/default.html carries the
+# app's own tokens - the yellow and the near-black it always travels with - so
+# the site and the product cannot drift apart.
+plugins: []
+
+exclude:
+  - README.md
