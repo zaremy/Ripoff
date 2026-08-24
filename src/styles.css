@@ -1327,11 +1327,14 @@ button.hl:active {
   font-weight: 700;
 }
 
-.picker .tag-source.selected {
-  background: var(--sub);
-  color: var(--bg);
-}
-
+/*
+ * No override here on purpose. The base rule already paints this chip
+ * `--ink` on `--bg`, and both flip with the mode, so it is always the
+ * inverse of the page. Pinning the background to `--sub` looks identical in
+ * light and collapses in dark, where `--sub` and `--bg` are the same
+ * `#121110` - black text on a black chip on a black page. Same trap `--edge`
+ * exists for.
+ */
 .tag-create {
   background: var(--hi);
   color: var(--sub);
