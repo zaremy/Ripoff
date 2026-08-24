@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { CaptureCard } from '../components/CaptureCard'
 import { Masonry } from '../components/Masonry'
+import { TopOfMind } from '../components/TopOfMind'
 import { incomingFromFiles } from '../lib/share'
 import { selectCaptures } from '../lib/tags'
 import { displayAspect } from '../lib/layout'
@@ -48,6 +49,8 @@ export function Home() {
           }}
         />
       </div>
+
+      <TopOfMind />
 
       {visible.length === 0 ? (
         <EmptyState hasCaptures={captures.length > 0} query={query} />
