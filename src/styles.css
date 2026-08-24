@@ -1236,14 +1236,12 @@ button.hl:active {
 }
 
 /*
- * No separator. At this width a long FOR tag takes the whole row, so the tags
- * stack rather than run inline and a trailing comma is left orphaned at the
- * end of a wrapped line. The stacking already separates them.
+ * The separator stays. Removing it assumed a FOR tag always takes the whole
+ * row, which holds for `Four Crowns / Avatars` and not for `Pricing` - two
+ * short tags then share a line and read as one idea. The base rule already
+ * hangs the comma off the tag it follows, so a wrap leaves it at the end of a
+ * line rather than orphaning it at the start of the next.
  */
-.card-relevant button:not(:last-child)::after,
-.detail-meta .card-relevant button:not(:last-child)::after {
-  content: none;
-}
 
 .card-relevant {
   gap: 4px;
